@@ -1,8 +1,10 @@
 import requests
 
+from gbif_data_pipeline.logging_config import get_logger
+
 GBIF_OCCURRENCE_API = "https://api.gbif.org/v1/occurrence/search"
 
-DEFAULT_PAGE_SIZE = 300
+logger = get_logger(__name__)
 
 
 def search_occurrences(
@@ -11,40 +13,56 @@ def search_occurrences(
 ) -> list[dict]:
     """GBIF occurrence APIから観察記録を取得する。"""
 
-    occurrences: list[dict] = []
+    logger.info(
+        "Searching GBIF occurrences: scientific_name=%s, limit=%s",
+        scientific_name,
+        limit,
+    )
+
+    results = []
+
     offset = 0
 
-    while len(occurrences) < limit:
-        page_size = min(
-            DEFAULT_PAGE_SIZE,
-            limit - len(occurrences),
-        )
+    while len(results) < limit:
+        batch_limit = min(300, limit - len(results))
 
         params = {
             "scientificName": scientific_name,
-            "limit": page_size,
+            "limit": batch_limit,
             "offset": offset,
         }
 
-        response = requests.get(
-            GBIF_OCCURRENCE_API,
-            params=params,
-            timeout=30,
-        )
-        response.raise_for_status()
+        try:
+            response = requests.get(
+                GBIF_OCCURRENCE_API,
+                params=params,
+                timeout=30,
+            )
+            response.raise_for_status()
+
+        except requests.RequestException:
+            logger.exception(
+                "GBIF API request failed: scientific_name=%s, offset=%s",
+                scientific_name,
+                offset,
+            )
+            raise
 
         data = response.json()
+        batch = data.get("results", [])
 
-        results = data["results"]
-        total_count = data["count"]
-
-        if not results:
+        if not batch:
             break
 
-        occurrences.extend(results)
-        offset += len(results)
+        results.extend(batch)
+        offset += len(batch)
 
-        if offset >= total_count:
-            break
+    results = results[:limit]
 
-    return occurrences[:limit]
+    logger.info(
+        "GBIF search completed: scientific_name=%s, records=%s",
+        scientific_name,
+        len(results),
+    )
+
+    return results

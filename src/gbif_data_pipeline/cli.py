@@ -1,5 +1,6 @@
 import argparse
 
+from gbif_data_pipeline.config import load_config
 from gbif_data_pipeline.duckdb_client import (
     count_by_country,
     count_by_species,
@@ -15,29 +16,54 @@ def main() -> None:
 
     parser.add_argument(
         "--scientific-name",
-        required=True,
         help="Scientific name to search",
-    )
+        )
 
     parser.add_argument(
         "--limit",
         type=int,
-        default=100,
-        help="Number of occurrences to retrieve",
+        default=None,
+        help="Maximum number of occurrences to retrieve",
     )
 
     parser.add_argument(
-        "--output",
-        default="data/occurrences.parquet",
-        help="Output Parquet path",
+        "--config",
+        type=str,
+        help="Path to YAML configuration file",
     )
 
     args = parser.parse_args()
 
+    config = {}
+
+    if args.config:
+        config = load_config(args.config)
+
+    scientific_name = (
+        args.scientific_name
+        or config.get("scientific_name")
+    )
+
+    limit = (
+        args.limit
+        if args.limit is not None
+        else config.get("limit", 100)
+    )
+
+    output_path = config.get(
+        "output_path",
+        "data/occurrences.parquet",
+    )
+
+    if not scientific_name:
+        parser.error(
+            "scientific_name or --config with scientific_name is required"
+        )
+
     output_path = run_pipeline(
-        scientific_name=args.scientific_name,
-        limit=args.limit,
-        output_path=args.output,
+        scientific_name=scientific_name,
+        limit=limit,
+        output_path=output_path,
     )
 
     print(f"Pipeline completed: {output_path}")

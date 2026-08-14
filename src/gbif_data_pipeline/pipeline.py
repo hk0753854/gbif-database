@@ -1,8 +1,11 @@
 from pathlib import Path
 
 from gbif_data_pipeline.gbif_client import search_occurrences
+from gbif_data_pipeline.logging_config import get_logger
 from gbif_data_pipeline.transform import occurrences_to_dataframe
 from gbif_data_pipeline.validate import validate_occurrences
+
+logger = get_logger(__name__)
 
 
 def run_pipeline(
@@ -11,7 +14,13 @@ def run_pipeline(
     output_path: str | Path = "data/occurrences.parquet",
 ) -> Path:
     """GBIFからデータを取得し、検証してParquetとして保存する。"""
-
+    
+    logger.info(
+        "Pipeline started: scientific_name=%s, limit=%s",
+        scientific_name,
+        limit,
+        )
+    
     # 1. GBIFから取得
     occurrences = search_occurrences(
         scientific_name=scientific_name,
@@ -36,5 +45,11 @@ def run_pipeline(
         output_path,
         index=False,
     )
+
+    logger.info(
+        "Pipeline completed: output_path=%s, records=%s",
+        output_path,
+        len(df),
+        )
 
     return output_path
