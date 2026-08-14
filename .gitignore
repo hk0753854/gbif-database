@@ -15,8 +15,7 @@ env/
 .env
 
 # Data
-data/raw/*
-data/processed/*
+data/
 
 # Logs
 logs/
@@ -27,3 +26,8 @@ Thumbs.db
 
 # VS Code
 .vscode/
+
+# Python packaging
+*.egg-info/
+dist/
+build/
