@@ -1,3 +1,26 @@
-# Animal Database
+# GBIF Data Engineering Pipeline
 
-GBIF APIから生物頻出記録データを取得・処理するパイプライン
+## Overview
+
+This project is a data engineering pipeline for collecting, transforming,
+and analyzing biodiversity data from the GBIF API.
+
+The project is designed as a personal data engineering portfolio,
+with a focus on maintainability, data quality, testing, and automation.
+
+## Architecture
+
+```text
+GBIF API
+   ↓
+Extract
+   ↓
+Raw Data
+   ↓
+Transform
+   ↓
+Processed Data
+   ↓
+DuckDB / SQL
+   ↓
+Analysis
