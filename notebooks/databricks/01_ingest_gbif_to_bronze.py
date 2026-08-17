@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 dbutils.widgets.text(
     "scientific_name",
     "Hynobius nebulosus",
@@ -63,12 +67,6 @@ rows = [
 ]
 
 df_bronze = spark.createDataFrame(rows)
-
-# COMMAND ----------
-
-# MAGIC %skip
-# MAGIC %sql
-# MAGIC TRUNCATE TABLE workspace.bronze.gbif_occurrences
 
 # COMMAND ----------
 
