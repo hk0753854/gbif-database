@@ -13,7 +13,7 @@ resources:
       tasks:
         - task_key: ingest_gbif_to_bronze
           notebook_task:
-            notebook_path: ../notebooks/databricks/01_ingest_gbif_to_bronze
+            notebook_path: ../notebooks/databricks/01_ingest_gbif_to_bronze.py
             base_parameters:
               scientific_name: "{{job.parameters.scientific_name}}"
               limit: "{{job.parameters.limit}}"
@@ -22,10 +22,10 @@ resources:
           depends_on:
             - task_key: ingest_gbif_to_bronze
           notebook_task:
-            notebook_path: ../notebooks/databricks/02_transform_bronze_to_silver
+            notebook_path: ../notebooks/databricks/02_transform_bronze_to_silver.py
 
         - task_key: create_gold_tables
           depends_on:
             - task_key: transform_bronze_to_silver
           notebook_task:
-            notebook_path: ../notebooks/databricks/03_create_gold_tables
+            notebook_path: ../notebooks/databricks/03_create_gold_tables.py
