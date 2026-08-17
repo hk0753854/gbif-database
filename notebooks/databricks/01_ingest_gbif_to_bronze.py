@@ -54,6 +54,7 @@ ingested_at = datetime.now(timezone.utc)
 
 rows = [
     Row(
+        gbif_key=record["key"],
         raw_json=json.dumps(record, ensure_ascii=False),
         query_scientific_name=scientific_name,
         ingested_at=ingested_at,
@@ -74,18 +75,27 @@ df_bronze = spark.createDataFrame(rows)
 # DBTITLE 1,Bronze Delta Tableへ保存
 bronze_table = "workspace.bronze.gbif_occurrences"
 
-(
-    df_bronze.write
-    .format("delta")
-    .mode("append")
-    .saveAsTable(bronze_table)
-)
+df_bronze.createOrReplaceTempView("gbif_new_records")
 
-print(
-    f"Bronze table updated: {bronze_table}, "
-    f"records={len(rows)}, "
-    f"scientific_name={scientific_name}"
-)
+spark.sql(f"""
+MERGE INTO {bronze_table} AS target
+USING gbif_new_records AS source
+ON target.gbif_key = source.gbif_key
+
+WHEN NOT MATCHED THEN
+  INSERT (
+    gbif_key,
+    raw_json,
+    query_scientific_name,
+    ingested_at
+  )
+  VALUES (
+    source.gbif_key,
+    source.raw_json,
+    source.query_scientific_name,
+    source.ingested_at
+  )
+""")
 
 # COMMAND ----------
 
