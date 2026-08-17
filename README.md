@@ -1,22 +1,330 @@
 # GBIF Data Pipeline
 
-GBIF（Global Biodiversity Information Facility）の生物観察データを取得し、
-データ変換・品質チェック・Parquet保存・DuckDBによる集計までを行う
-Python製のデータパイプラインです。
+GBIF（Global Biodiversity Information Facility）の生物多様性データを
+GBIF Occurrence APIから取得し、Databricks上でBronze / Silver / Gold
+アーキテクチャによるデータパイプラインとして処理・分析する
+データエンジニアリングプロジェクトです。
+
+ローカル環境ではPython・Pandas・Parquet・DuckDBを使用した
+データ処理も実装しており、Databricks版ではPySpark・Delta Lakeを
+使用してスケーラブルなデータ処理基盤へ発展させています。
+
+---
 
 ## Overview
+
 このプロジェクトでは、GBIF Occurrence APIから生物の観察記録を取得し、
+以下の処理を行います。
 
-1. GBIF APIからデータを取得
-2. Pandas DataFrameへ変換
-3. データ品質をチェック
-4. Parquet形式で保存
-5. DuckDBでSQL分析
-6. CLIから一連の処理を実行
+1. GBIF APIから観察データを取得
+2. Raw JSONとしてBronze Delta Tableへ保存
+3. PySparkによるデータ変換
+4. データ品質チェック
+5. Silver Delta Tableへ構造化データを保存
+6. Gold Layerで分析用データを作成
+7. Databricks Jobによる処理のオーケストレーション
+8. Databricks Declarative Automation BundlesによるJob定義・デプロイ
 
-というデータパイプラインを構築しています。
+---
+
+# Architecture
+
+## Data Pipeline
 
 ```text
+                    GBIF Occurrence API
+                             │
+                             ▼
+                  ┌────────────────────┐
+                  │ 01 Ingest          │
+                  │ Python / Requests  │
+                  └─────────┬──────────┘
+                            │
+                            ▼
+                  ┌────────────────────┐
+                  │ Bronze             │
+                  │ Raw JSON           │
+                  │ Delta Table        │
+                  └─────────┬──────────┘
+                            │
+                            ▼
+                  ┌────────────────────┐
+                  │ 02 Transform       │
+                  │ PySpark            │
+                  │ Data Quality       │
+                  └─────────┬──────────┘
+                            │
+                            ▼
+                  ┌────────────────────┐
+                  │ Silver             │
+                  │ Structured Data    │
+                  │ Delta Table        │
+                  └─────────┬──────────┘
+                            │
+                            ▼
+                  ┌────────────────────┐
+                  │ 03 Gold            │
+                  │ Analytical Tables  │
+                  └────────────────────┘
+```
+
+# Deployment Architecture
+```
+                     GitHub
+                       │
+                       ▼
+                     VS Code
+                       │
+                       ▼
+            Databricks Bundle
+             databricks.yml
+                       │
+                       ▼
+      Databricks Declarative Automation
+                    Bundles
+                       │
+                       ▼
+              Databricks Job
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+       Ingest      Transform       Gold
+          │            │            │
+          └────────────┴────────────┘
+                       │
+                       ▼
+                 Delta Lake
+```
+
+# Databricks Pipeline
+Databricks上では、3つのNotebookを依存関係付きのJobとして実行しています。
+
+```
+01_ingest_gbif_to_bronze
+            │
+            ▼
+02_transform_bronze_to_silver
+            │
+            ▼
+03_create_gold_tables
+```
+
+01. Ingest
+GBIF Occurrence APIから観察データを取得します。
+Notebookでは以下のパラメータを指定できます。
+```
+scientific_name
+limit
+
+例：
+scientific_name = Hynobius nebulosus
+limit = 10
+```
+
+取得したAPIレスポンスはRaw JSONとしてBronze Delta Tableへ保存します。
+```
+workspace.bronze.gbif_occurrences
+```
+Raw JSONを保持することで、後続処理で必要な項目を追加できる
+構成としています。
+
+
+02. Bronze → Silver
+Bronzeに保存したJSONデータをPySparkで構造化します。
+主な項目：
+```
+gbifID
+scientificName
+species
+kingdom
+phylum
+class
+order
+family
+genus
+country
+countryCode
+decimalLatitude
+decimalLongitude
+eventDate
+basisOfRecord
+occurrenceStatus
+query_scientific_name
+ingested_at
+```
+また、eventDateを解析して、
+```
+event_year
+event_month
+event_day
+```
+へ分離しています。
+```
+Silver Delta Table：
+```
+workspace.silver.gbif_occurrences
+
+# Data Quality
+Silver Layerへの変換時に基本的なデータ品質チェックを実施しています。
+
+現在チェックしている項目：
+
+・gbifID の欠損
+・scientificName の欠損
+・countryCode の欠損
+・緯度の範囲チェック（-90 ～ 90）
+・経度の範囲チェック（-180 ～ 180）
+
+これにより、単純なデータ変換だけではなく、
+分析前のデータ品質を確認できる構成にしています。
+
+# Gold Layer
+Silver Layerから分析用途の集計テーブルを作成します。
+現在、以下のGold Tableを実装しています。
+
+| Table                      | Description    |
+| -------------------------- | -------------- |
+| `species_summary`          | Species別の観察件数  |
+| `country_summary`          | Country別の観察件数  |
+| `year_summary`             | 年別の観察件数        |
+| `observation_type_summary` | 観察タイプ別の件数      |
+| `geographic_summary`       | 緯度・経度による観察地点集計 |
+
+# Geographic Summary
+緯度・経度を約0.1度単位に丸めてグリッド化し、
+近い観察地点をまとめています。
+
+これにより、観察地点の分布を簡易的に分析できる
+データセットを作成しています。
+
+# Databricks Job as Code
+
+Databricks JobはGUIだけで構築するのではなく、
+Gitで管理できるコードとして定義しています。
+
+Job定義：
+```
+resources/gbif_pipeline.yml
+```
+Bundle設定：
+```
+databricks.yml
+```
+Jobの構成：
+```
+gbif_pipeline
+│
+├── ingest_gbif_to_bronze
+│
+├── transform_bronze_to_silver
+│      └── depends_on:
+│          ingest_gbif_to_bronze
+│
+└── create_gold_tables
+       └── depends_on:
+           transform_bronze_to_silver
+```
+Databricks CLIを使用して、Gitで管理されたJob定義を
+Databricksへデプロイできます。
+```
+databricks bundle validate
+databricks bundle deploy
+databricks bundle run gbif_pipeline
+```
+これにより、Databricks Jobの構成をコードとして再現可能にしています。
+
+# Technology Stack
+| Category              | Technology                                |
+| --------------------- | ----------------------------------------- |
+| Language              | Python 3.12                               |
+| API                   | GBIF Occurrence API                       |
+| Data Processing       | PySpark                                   |
+| Data Platform         | Databricks                                |
+| Storage               | Delta Lake                                |
+| Local Data Processing | Pandas                                    |
+| Local Storage         | Parquet                                   |
+| Local SQL Engine      | DuckDB                                    |
+| Testing               | pytest                                    |
+| Linting               | Ruff                                      |
+| Version Control       | Git / GitHub                              |
+| Job Deployment        | Databricks Declarative Automation Bundles |
+| CLI                   | Databricks CLI                            |
+
+# Project Structure
+```
+gbif-data-pipeline/
+│
+├── .github/
+│
+├── notebooks/
+│   └── databricks/
+│       ├── 01_ingest_gbif_to_bronze
+│       ├── 02_transform_bronze_to_silver
+│       └── 03_create_gold_tables
+│
+├── resources/
+│   └── gbif_pipeline.yml
+│
+├── src/
+│   └── gbif_data_pipeline/
+│       ├── __init__.py
+│       ├── gbif_client.py
+│       ├── transform.py
+│       ├── validate.py
+│       ├── duckdb_client.py
+│       ├── pipeline.py
+│       └── cli.py
+│
+├── tests/
+│   ├── test_cli.py
+│   ├── test_duckdb_client.py
+│   ├── test_gbif_client.py
+│   ├── test_pipeline.py
+│   ├── test_transform.py
+│   └── test_validate.py
+│
+├── databricks.yml
+├── config.yml
+├── pyproject.toml
+├── README.md
+└── .gitignore
+```
+
+# Local Development
+Databricks版とは別に、ローカル環境でもGBIF APIから
+データを取得してParquet・DuckDBによる分析を実行できます。
+
+## Setup
+1. Clone
+```
+git clone https://github.com/hk0753854/animal-database.git
+cd animal-database
+```
+2. Create virtual environment
+Windows:
+```
+python -m venv .venv
+```
+3. Activate
+```
+.venv\Scripts\Activate.ps1
+```
+4. Install dependencies
+```
+pip install -e ".[dev]"
+```
+5. Run
+```
+python -m gbif_data_pipeline.cli "Hynobius nebulosus" --limit 10
+```
+
+ローカル実行では取得したデータをParquetとして保存し、
+DuckDBからSQLによる集計を行います。
+
+# Local Data Processing
+
+ローカル版では以下の処理を実装しています。
+```
 GBIF API
    │
    ▼
@@ -38,177 +346,14 @@ DuckDB
    ├── Country別集計
    └── Year別集計
 ```
-
-# Technologies
-Python 3.12
-Requests
-Pandas
-PyArrow
-DuckDB
-pytest
-Ruff
-
-
-# Project Structure
-```
-gbif-data-pipeline/
-│
-├── src/
-│   └── gbif_data_pipeline/
-│       ├── __init__.py
-│       ├── gbif_client.py
-│       ├── transform.py
-│       ├── validate.py
-│       ├── duckdb_client.py
-│       ├── pipeline.py
-│       └── cli.py
-│
-├── tests/
-│   ├── test_cli.py
-│   ├── test_duckdb_client.py
-│   ├── test_gbif_client.py
-│   ├── test_pipeline.py
-│   ├── test_transform.py
-│   └── test_validate.py
-│
-├── notebooks/
-├── pyproject.toml
-├── README.md
-└── .gitignore
-```
-
-# Setup
-1. Clone
-```
-git clone https://github.com/<your-account>/gbif-data-pipeline.git
-cd gbif-data-pipeline
-```
-2. Create virtual environment
-```
-Windows:
-    python -m venv .venv
-```
-
-3. Activate virtual environment
-```
-.venv\Scripts\Activate.ps1
-```
-
-4. Install
-```
-pip install -e .
-Usage
-```
-
-以下のコマンドでGBIFから観察データを取得できます。
-```
-python -m gbif_data_pipeline.cli "Hynobius nebulosus" --limit 10
-```
-実行すると、取得したデータを
-```
-data/occurrences.parquet
-```
-として保存し、その後DuckDBを使用して集計します。
-
-# Example Output
-```
-Pipeline completed: data\occurrences.parquet
-
-=== Observations by Species ===
-                                   scientificName  observations
-0  Hynobius nebulosus (Temminck & Schlegel, 1838)            10
-
-
-=== Observations by Country ===
-  countryCode  observations
-0          JP            10
-
-
-=== Observations by Year ===
-   year  observations
-0  2022             1
-1  2023             2
-2  2026             7
-```
-
-# Data Processing
-1. Data Collection
-gbif_client.py ではGBIF Occurrence APIを利用して
-生物観察データを取得します。
-
-検索対象の学名を指定してデータを取得できます。
-
-また、APIのpaginationにも対応しています。
-
-2. Transformation
-transform.py では、GBIF APIから取得したJSONデータを
-Pandas DataFrameへ変換します。
-
-主なカラム：
-```
-gbifID
-scientificName
-species
-kingdom
-phylum
-class
-order
-family
-genus
-country
-countryCode
-decimalLatitude
-decimalLongitude
-eventDate
-basisOfRecord
-occurrenceStatus
-```
-
-3. Data Validation
-validate.py では、分析に必要な最低限のカラムが存在するかを
-チェックします。
-
-現在の必須カラム：
-```
-gbifID
-scientificName
-countryCode
-```
-
-4. Parquet
-取得したデータはParquet形式で保存します。
-```
-data/occurrences.parquet
-```
-Parquetを採用することで、DuckDBから直接データを読み込んで
-SQLによる分析を行える構成にしています。
-
-
-5. DuckDB
-duckdb_client.py ではParquetに対してSQLを実行します。
-現在、以下の集計を実装しています。
-```
-Species別観察件数
-Country別観察件数
-Year別観察件数
-```
-例えばSpecies別集計では、
-```
-SELECT
-    scientificName,
-    COUNT(*) AS observations
-FROM read_parquet(?)
-GROUP BY scientificName
-ORDER BY observations DESC
-```
-というSQLを使用しています。
+これにより、Databricksを利用しない環境でも
+基本的なデータ取得・変換・分析処理を確認できます。
 
 # Testing
+
 pytestによるユニットテストを実装しています。
 
-pytest結果　⇒　現在、11 passed
-
-テスト対象：
+現在のテスト対象：
 ```
 GBIF API client
 API pagination
@@ -218,67 +363,79 @@ Pipeline
 DuckDB query
 CLI
 ```
-
 APIアクセス部分ではpytestのmonkeypatchを使用し、
 実際のGBIF APIへアクセスせずにテストできる構成にしています。
-
+```
+pytest
+```
 # Design
+このプロジェクトでは、データ取得・変換・品質チェック・
+分析処理の責務を分離しています。
 
-このプロジェクトでは、各処理の責務を分離しています。
+ローカル版では、
 ```
 gbif_client.py
       │
-      │ APIから取得
       ▼
 transform.py
       │
-      │ DataFrameへ変換
       ▼
 validate.py
       │
-      │ データ品質チェック
       ▼
 pipeline.py
       │
-      │ Parquet保存
       ▼
 duckdb_client.py
-      │
-      │ SQL分析
-      ▼
-     結果
 ```
-処理を分離することで、各コンポーネントを独立して
-テスト・変更できる構成を目指しています。
+という構成にしています。
+
+Databricks版では、
+```
+Bronze
+   │
+   ▼
+Silver
+   │
+   ▼
+Gold
+```
+というLakehouse Architectureへ発展させています。
 
 # Future Improvements
 
 今後は以下の機能追加を予定しています。
 ```
- APIリトライ処理
- ロギング
- 複数speciesの一括取得
- 増分取得
- データ品質チェックの強化
- Docker対応
- GitHub ActionsによるCI
- より高度なDuckDB分析
- パイプライン実行結果のログ管理
+GBIF APIの大規模Pagination対応
+増分取得
+APIリトライ処理
+重複データの検出
+データ品質チェックの強化
+Databricks SQL Dashboard
+CI/CDによる自動テスト・デプロイ
+Azure DevOps Pipelineとの連携
+パイプライン実行結果の監視・ログ管理
+より高度な地理空間分析
 Learning Objectives
 ```
 このプロジェクトを通して、以下のデータエンジニアリング技術を
 実践しています。
 ```
 REST APIからのデータ取得
-ETLパイプライン構築
-Pandasによるデータ変換
+ETL / ELTパイプライン構築
+Pythonによるデータ処理
+PySparkによる大規模データ処理
+Bronze / Silver / Gold Architecture
+Delta Lake
+Databricks Jobs
+Databricks Declarative Automation Bundles
+Job as Code
+データ品質チェック
 Parquetによるデータ保存
 DuckDBによるSQL分析
-データ品質チェック
 pytestによるテスト
-CLIアプリケーション
-Pythonプロジェクト構成
 Git / GitHubによるソースコード管理
 ```
+
 # License
 This project is for educational and portfolio purposes.
