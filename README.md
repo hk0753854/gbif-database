@@ -1,40 +1,60 @@
 # GBIF Data Pipeline
 
-GBIF（Global Biodiversity Information Facility）の生物多様性データを
-GBIF Occurrence APIから取得し、Databricks上でBronze / Silver / Gold
-アーキテクチャによるデータパイプラインとして処理・分析する
-データエンジニアリングプロジェクトです。
+GBIF（Global Biodiversity Information Facility）の生物多様性データを題材にした、**Databricksベースのデータエンジニアリングパイプライン**です。
 
-ローカル環境ではPython・Pandas・Parquet・DuckDBを使用した
-データ処理も実装しており、Databricks版ではPySpark・Delta Lakeを
-使用してスケーラブルなデータ処理基盤へ発展させています。
+GBIF Occurrence APIから観察データを取得し、Databricks上で **Bronze / Silver / Gold Architecture** に基づいてデータを処理・分析します。
 
-また、Databricks JobをDatabricks Asset Bundlesでコード管理し、
-GitHub ActionsによるCI/CDを構築しています。
+また、ローカル開発環境では **Python / Pandas / Parquet / DuckDB** を利用し、Databricks環境では **PySpark / Delta Lake / Databricks Jobs** を利用する構成としています。
+
+Databricks Jobは **Databricks Asset BundlesによるJob as Code** としてGit管理し、**GitHub ActionsによるCI/CD** まで実装しています。
 
 ---
 
 ## Overview
 
-このプロジェクトでは、GBIF Occurrence APIから生物の観察記録を取得し、
-以下の処理を行います。
+このプロジェクトでは、GBIF Occurrence APIから生物の観察記録を取得し、以下のデータパイプラインを構築しています。
 
-1. GBIF APIから観察データを取得
-2. Raw JSONとしてBronze Delta Tableへ保存
+```text
+GBIF Occurrence API
+        │
+        ▼
+    Data Ingestion
+        │
+        ▼
+      Bronze
+        │
+        ▼
+      Silver
+        │
+        ▼
+       Gold
+        │
+        ▼
+   Data Analysis
+```
+
+主な実装内容：
+
+1. GBIF Occurrence APIから観察データを取得
+2. Raw JSONをBronze Delta Tableへ保存
 3. PySparkによるデータ変換
 4. データ品質チェック
 5. Silver Delta Tableへ構造化データを保存
-6. Gold Layerで分析用データを作成
+6. Gold Layerで分析用テーブルを作成
 7. Databricks Jobによる処理のオーケストレーション
 8. Databricks Asset BundlesによるJob定義・デプロイ
 9. GitHub ActionsによるCI/CD
-10. Jobパラメータによる取得対象・取得件数の制御
+10. Job Parametersによる取得対象・取得件数の制御
+11. pytestによるユニットテスト
+12. Ruffによるコード品質チェック
 
 ---
 
-# Architecture
+# Key Features
 
-## Data Pipeline
+## Databricks Lakehouse Architecture
+
+Databricks上でBronze / Silver / Goldの3層構成を実装しています。
 
 ```text
                     GBIF Occurrence API
@@ -73,38 +93,86 @@ GitHub ActionsによるCI/CDを構築しています。
                   └────────────────────┘
 ```
 
-## Deployment Architecture
+## Job as Code
 
-GitHub Actionsを利用して、コード品質チェック・Bundle検証・
-Databricksへのデプロイを自動化しています。
+Databricks JobをGUIだけで構築するのではなく、Databricks Asset Bundlesを利用してGit管理しています。
 
 ```text
-                         GitHub
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-        Pull Request               push to main
-              │                         │
-              ▼                         ▼
-      ┌────────────────┐        ┌────────────────┐
-      │ Ruff           │        │ Ruff           │
-      │ pytest         │        │ pytest         │
-      │ Bundle validate│        │ Bundle validate│
-      └────────────────┘        └───────┬────────┘
-                                        │
-                                        ▼
-                              ┌────────────────────┐
-                              │ Bundle deploy      │
-                              │ -t dev             │
-                              └─────────┬──────────┘
-                                        │
-                                        ▼
-                              ┌────────────────────┐
-                              │ Databricks         │
-                              │                    │
-                              │ animal-database-   │
-                              │ gbif-pipeline      │
-                              └────────────────────┘
+GitHub
+  │
+  ▼
+databricks.yml
+  │
+  ▼
+resources/gbif_pipeline.yml
+  │
+  ▼
+Databricks Job
+```
+
+これにより、Jobの構成・Notebook・依存関係・パラメータをコードとして再現可能にしています。
+
+## CI/CD
+
+GitHub Actionsを利用して、Pull Request時の検証と`main`ブランチへのPush時のDatabricksデプロイを自動化しています。
+
+```text
+Pull Request
+     │
+     ├── Ruff
+     ├── pytest
+     └── Bundle Validate
+     
+main Push
+     │
+     ├── Ruff
+     ├── pytest
+     ├── Bundle Validate
+     │
+     └── Bundle Deploy
+              │
+              ▼
+         Databricks
+```
+
+---
+
+# Architecture
+
+## Data Pipeline
+
+GBIF Occurrence APIから取得したデータをDatabricks上で段階的に処理します。
+
+```text
+                         GBIF
+                   Occurrence API
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Ingestion            │
+              │ Python / Requests    │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Bronze              │
+              │ Raw JSON            │
+              │ Delta Lake          │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Silver              │
+              │ PySpark             │
+              │ Structured Data     │
+              │ Data Quality        │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Gold                │
+              │ Analytical Tables   │
+              └─────────────────────┘
 ```
 
 ---
@@ -127,7 +195,7 @@ Databricks上では、3つのNotebookを依存関係付きのJobとして実行�
 
 GBIF Occurrence APIから観察データを取得します。
 
-Notebookでは以下のJobパラメータを指定できます。
+Notebookでは以下のJob Parametersを指定できます。
 
 ```text
 scientific_name
@@ -141,11 +209,10 @@ scientific_name = Hynobius nebulosus
 limit = 10
 ```
 
-JobパラメータはDatabricks Asset Bundlesで定義し、
-NotebookのWidgetへ渡しています。
+Job ParametersはDatabricks Asset Bundlesで定義し、Notebook Widgetへ渡しています。
 
 ```text
-Job parameters
+Job Parameters
       │
       ├── scientific_name
       │
@@ -161,8 +228,9 @@ Job parameters
 workspace.bronze.gbif_occurrences
 ```
 
-Raw JSONを保持することで、後続処理で必要な項目を追加できる
-構成としています。
+Bronze Layerでは可能な限りRawデータを保持することで、後続処理で必要な項目を追加できる構成としています。
+
+---
 
 ## 02. Bronze → Silver
 
@@ -191,15 +259,13 @@ query_scientific_name
 ingested_at
 ```
 
-また、eventDateを解析して、
+`eventDate`については、分析しやすいように以下の項目へ分離しています。
 
 ```text
 event_year
 event_month
 event_day
 ```
-
-へ分離しています。
 
 Silver Delta Table：
 
@@ -215,14 +281,30 @@ Silver Layerへの変換時に基本的なデータ品質チェックを実施�
 
 現在チェックしている項目：
 
-* gbifID の欠損
-* scientificName の欠損
-* countryCode の欠損
+* `gbifID` の欠損
+* `scientificName` の欠損
+* `countryCode` の欠損
 * 緯度の範囲チェック（-90 ～ 90）
 * 経度の範囲チェック（-180 ～ 180）
 
-これにより、単純なデータ変換だけではなく、
-分析前のデータ品質を確認できる構成にしています。
+```text
+Bronze
+   │
+   ▼
+PySpark Transformation
+   │
+   ▼
+Data Quality Checks
+   │
+   ├── Required Columns
+   ├── Latitude Range
+   └── Longitude Range
+   │
+   ▼
+Silver
+```
+
+単純なデータ変換だけではなく、分析前にデータ品質を確認する構成としています。
 
 ---
 
@@ -242,18 +324,26 @@ Silver Layerから分析用途の集計テーブルを作成します。
 
 ## Geographic Summary
 
-緯度・経度を約0.1度単位に丸めてグリッド化し、
-近い観察地点をまとめています。
+緯度・経度を約0.1度単位に丸めてグリッド化し、近い観察地点をまとめています。
 
-これにより、観察地点の分布を簡易的に分析できる
-データセットを作成しています。
+```text
+decimalLatitude
+decimalLongitude
+        │
+        ▼
+  Grid Transformation
+        │
+        ▼
+geographic_summary
+```
+
+これにより、観察地点の分布を簡易的に分析できるデータセットを作成しています。
 
 ---
 
 # Databricks Job as Code
 
-Databricks JobはGUIだけで構築するのではなく、
-Gitで管理できるコードとして定義しています。
+Databricks JobはGUIだけで構築するのではなく、Databricks Asset Bundlesを利用してコードとして定義しています。
 
 Job定義：
 
@@ -267,7 +357,7 @@ Bundle設定：
 databricks.yml
 ```
 
-Jobの構成：
+Job構成：
 
 ```text
 gbif_pipeline
@@ -283,18 +373,20 @@ gbif_pipeline
            transform_bronze_to_silver
 ```
 
-Jobパラメータ：
+Job Parameters：
 
 ```text
 scientific_name
 limit
 ```
 
-これらのパラメータはNotebook Taskへ渡され、
-GBIF APIから取得する対象種・取得件数を制御します。
+これらのパラメータはNotebook Taskへ渡され、GBIF APIから取得する対象種・取得件数を制御します。
 
-Databricks CLIを使用して、Gitで管理されたJob定義を
-Databricksへデプロイできます。
+---
+
+## Bundle Commands
+
+Databricks CLIを使用して、Gitで管理されたJob定義をDatabricksへデプロイできます。
 
 ```bash
 databricks bundle validate -t dev
@@ -308,8 +400,7 @@ databricks bundle run gbif_pipeline -t dev
 
 # CI/CD
 
-GitHub Actionsを利用して、PythonコードとDatabricks Bundleの
-自動検証・デプロイを実装しています。
+GitHub Actionsを利用して、PythonコードとDatabricks Bundleの自動検証・デプロイを実装しています。
 
 ## Pull Request
 
@@ -323,13 +414,11 @@ Pull Request
      └── databricks bundle validate
 ```
 
-コード品質・ユニットテスト・Databricks Job定義を検証し、
-問題がある場合はデプロイを行いません。
+コード品質・ユニットテスト・Databricks Job定義を検証し、問題がある場合はデプロイを行いません。
 
 ## mainへのPush
 
-`main` ブランチへのPushでは、上記の検証に加えて
-DatabricksへのBundleデプロイを実行します。
+`main`ブランチへのPushでは、上記の検証に加えてDatabricksへのBundleデプロイを実行します。
 
 ```text
 main push
@@ -344,8 +433,7 @@ main push
          Databricks
 ```
 
-これにより、GitHubをソースコードのSingle Source of Truthとして、
-Databricks Jobの構成を自動的に反映できるようにしています。
+これにより、GitHubをソースコードのSingle Source of Truthとして、Databricks Jobの構成を自動的に反映できるようにしています。
 
 ---
 
@@ -417,8 +505,9 @@ gbif-data-pipeline/
 
 # Local Development
 
-Databricks版とは別に、ローカル環境でもGBIF APIから
-データを取得してParquet・DuckDBによる分析を実行できます。
+Databricks版とは別に、ローカル環境でもGBIF APIからデータを取得し、Parquet・DuckDBによるデータ処理・分析を実行できます。
+
+ローカル開発環境とDatabricks実行環境を分離することで、開発・テストをローカルで行いながら、実行環境ではDatabricksの分散処理基盤を利用する構成としています。
 
 ## Setup
 
@@ -429,9 +518,9 @@ git clone https://github.com/hk0753854/animal-database.git
 cd animal-database
 ```
 
-### 2. Create virtual environment
+### 2. Create Virtual Environment
 
-Windows:
+Windows：
 
 ```bash
 python -m venv .venv
@@ -443,7 +532,7 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-### 4. Install dependencies
+### 4. Install Dependencies
 
 ```bash
 pip install -e ".[dev]"
@@ -455,8 +544,7 @@ pip install -e ".[dev]"
 python -m gbif_data_pipeline.cli "Hynobius nebulosus" --limit 10
 ```
 
-ローカル実行では取得したデータをParquetとして保存し、
-DuckDBからSQLによる集計を行います。
+ローカル実行では取得したデータをParquetとして保存し、DuckDBからSQLによる集計を行います。
 
 ---
 
@@ -487,8 +575,7 @@ DuckDB
    └── Year別集計
 ```
 
-これにより、Databricksを利用しない環境でも
-基本的なデータ取得・変換・分析処理を確認できます。
+これにより、Databricksを利用しない環境でも基本的なデータ取得・変換・品質チェック・分析処理を確認できます。
 
 ---
 
@@ -499,17 +586,16 @@ pytestによるユニットテストを実装しています。
 現在のテスト対象：
 
 ```text
-GBIF API client
-API pagination
-DataFrame transformation
-Data validation
+GBIF API Client
+API Pagination
+DataFrame Transformation
+Data Validation
 Pipeline
-DuckDB query
+DuckDB Query
 CLI
 ```
 
-APIアクセス部分ではpytestのmonkeypatchを使用し、
-実際のGBIF APIへアクセスせずにテストできる構成にしています。
+APIアクセス部分ではpytestの`monkeypatch`を使用し、実際のGBIF APIへアクセスせずにテストできる構成にしています。
 
 ```bash
 pytest
@@ -521,16 +607,17 @@ RuffによるLintも実行しています。
 ruff check src tests
 ```
 
-これらはGitHub Actionsでも自動実行されます。
+これらのチェックはGitHub Actionsでも自動実行されます。
 
 ---
 
 # Design
 
-このプロジェクトでは、データ取得・変換・品質チェック・
-分析処理の責務を分離しています。
+このプロジェクトでは、データ取得・変換・品質チェック・分析処理の責務を分離しています。
 
-ローカル版では、
+## Local Architecture
+
+ローカル版では以下の構成としています。
 
 ```text
 gbif_client.py
@@ -548,9 +635,9 @@ pipeline.py
 duckdb_client.py
 ```
 
-という構成にしています。
+## Databricks Architecture
 
-Databricks版では、
+Databricks版では、ローカルで実装したデータ処理の考え方をLakehouse Architectureへ発展させています。
 
 ```text
 Bronze
@@ -562,10 +649,61 @@ Silver
 Gold
 ```
 
-というLakehouse Architectureへ発展させています。
+さらにDatabricks JobをAsset Bundlesとしてコード管理することで、Notebook・Job・依存関係・パラメータをGitで管理できる構成としています。
 
-また、Databricks JobをAsset Bundlesとしてコード管理することで、
-Notebook・Job・依存関係をGitで管理できる構成としています。
+---
+
+# Development Philosophy
+
+このプロジェクトでは、単にDatabricks上でNotebookを実行するだけではなく、実際のデータエンジニアリング開発を想定して以下を意識しています。
+
+### 1. Local Development
+
+Pythonによるデータ処理をローカル環境で開発・テストします。
+
+### 2. Automated Testing
+
+pytestによるユニットテストを実装し、APIやデータ処理ロジックを自動検証します。
+
+### 3. Code Quality
+
+RuffによるLintをCI/CDへ組み込み、コード品質を自動チェックします。
+
+### 4. Lakehouse Architecture
+
+Databricks上ではBronze / Silver / Goldにデータを分離します。
+
+### 5. Job as Code
+
+Databricks JobをAsset Bundlesで定義し、Gitによるバージョン管理を行います。
+
+### 6. CI/CD
+
+GitHub ActionsからBundleのValidation・Deploymentを自動実行します。
+
+```text
+Local Development
+       │
+       ▼
+      Git
+       │
+       ▼
+GitHub Actions
+       │
+       ├── Ruff
+       ├── pytest
+       └── Bundle Validate
+              │
+              ▼
+       Bundle Deploy
+              │
+              ▼
+         Databricks
+              │
+              ▼
+       Production-like
+        Data Pipeline
+```
 
 ---
 
@@ -586,14 +724,13 @@ Azure DevOps Pipelineとの連携
 dev / prod環境の分離
 ```
 
-CI/CDによる自動テスト・デプロイについては実装済みです。
+CI/CDによる自動テスト・Bundle Validation・Databricksへの自動デプロイについては実装済みです。
 
 ---
 
 # Learning Objectives
 
-このプロジェクトを通して、以下のデータエンジニアリング技術を
-実践しています。
+このプロジェクトを通して、以下のデータエンジニアリング技術を実践しています。
 
 ```text
 REST APIからのデータ取得
@@ -614,6 +751,33 @@ RuffによるLint
 Git / GitHubによるソースコード管理
 GitHub ActionsによるCI/CD
 ```
+
+---
+
+# Portfolio Highlights
+
+このプロジェクトでは、以下のデータエンジニアリング要素を一通り実装しています。
+
+| Area                   | Implementation                     |
+| ---------------------- | ---------------------------------- |
+| Data Source            | GBIF Occurrence API                |
+| Ingestion              | Python / Requests                  |
+| Local Processing       | Pandas                             |
+| Distributed Processing | PySpark                            |
+| Data Lakehouse         | Databricks / Delta Lake            |
+| Architecture           | Bronze / Silver / Gold             |
+| Data Quality           | Required Fields / Range Validation |
+| Analytics              | Gold Aggregation Tables            |
+| Orchestration          | Databricks Jobs                    |
+| Infrastructure as Code | Databricks Asset Bundles           |
+| Parameterization       | Databricks Job Parameters          |
+| Testing                | pytest                             |
+| Code Quality           | Ruff                               |
+| CI/CD                  | GitHub Actions                     |
+| Version Control        | Git / GitHub                       |
+| Local Analytics        | DuckDB                             |
+
+---
 
 # License
 
