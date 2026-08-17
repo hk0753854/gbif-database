@@ -1,7 +1,7 @@
 resources:
   jobs:
     gbif_pipeline:
-      name: animal-database-gbif-pipeline
+      name: animal-database-gbif-pipeline-${bundle.target}
 
       parameters:
         - name: scientific_name
