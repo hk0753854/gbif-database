@@ -310,15 +310,19 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "species_summary",
+                  "datasetName": "country_summary",
                   "fields": [
                     {
-                      "name": "scientific_name",
-                      "expression": "`scientific_name`"
+                      "name": "count(japanese_name)",
+                      "expression": "COUNT(`japanese_name`)"
                     },
                     {
                       "name": "measure(total_observations)",
                       "expression": "MEASURE(`total_observations`)"
+                    },
+                    {
+                      "name": "countryCode",
+                      "expression": "`countryCode`"
                     }
                   ],
                   "disaggregated": false
@@ -328,31 +332,34 @@
             "spec": {
               "version": 3,
               "frame": {
-                "title": "Observations by Species",
+                "title": "国コード別生物データ数",
                 "showTitle": true
               },
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "scientific_name",
-                  "displayName": "Scientific Name",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                },
-                "y": {
                   "fieldName": "measure(total_observations)",
-                  "displayName": "Total Observations",
+                  "displayName": "観測数",
                   "scale": {
                     "type": "quantitative"
                   }
                 },
-                "color": {
-                  "fieldName": "scientific_name",
-                  "displayName": "Scientific Name",
+                "y": {
+                  "fieldName": "countryCode",
+                  "displayName": "国コード",
                   "scale": {
                     "type": "categorical"
                   }
+                },
+                "color": {
+                  "fieldName": "count(japanese_name)",
+                  "displayName": "count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": false
                 }
               },
               "data": {
@@ -364,7 +371,7 @@
             "x": 0,
             "y": 7,
             "width": 12,
-            "height": 9
+            "height": 7
           }
         },
         {
@@ -418,9 +425,9 @@
             }
           },
           "position": {
-            "x": 8,
+            "x": 6,
             "y": 1,
-            "width": 4,
+            "width": 6,
             "height": 6
           }
         },
@@ -471,8 +478,8 @@
           },
           "position": {
             "x": 0,
-            "y": 16,
-            "width": 12,
+            "y": 14,
+            "width": 8,
             "height": 9
           }
         },
@@ -486,12 +493,81 @@
                   "datasetName": "species_summary",
                   "fields": [
                     {
-                      "name": "measure(total_observations)",
-                      "expression": "MEASURE(`total_observations`)"
+                      "name": "taxonomic_group",
+                      "expression": "`taxonomic_group`"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    {
+                      "direction": "DESC",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "日本名別データ割合",
+                "showTitle": true
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "taxonomic_group"
+                  },
+                  {
+                    "fieldName": "count(*)"
+                  }
+                ],
+                "rowOrder": [
+                  {
+                    "by": "column-reversed",
+                    "field": {
+                      "index": 1
+                    }
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "52e40e2b",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "geographic_summary",
+                  "fields": [
+                    {
+                      "name": "stateProvince",
+                      "expression": "`stateProvince`"
                     },
                     {
                       "name": "japanese_name",
                       "expression": "`japanese_name`"
+                    },
+                    {
+                      "name": "measure(total_observations)",
+                      "expression": "MEASURE(`total_observations`)"
                     }
                   ],
                   "disaggregated": false
@@ -501,21 +577,28 @@
             "spec": {
               "version": 3,
               "frame": {
-                "title": "日本名別データ割合",
+                "title": "地点別生物種データ",
                 "showTitle": true
               },
-              "widgetType": "pie",
+              "widgetType": "bar",
               "encodings": {
-                "angle": {
+                "x": {
+                  "fieldName": "japanese_name",
+                  "displayName": "生物名",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
                   "fieldName": "measure(total_observations)",
+                  "displayName": "観測数",
                   "scale": {
                     "type": "quantitative"
-                  },
-                  "displayName": "観測数"
+                  }
                 },
                 "color": {
-                  "fieldName": "japanese_name",
-                  "displayName": "日本名",
+                  "fieldName": "stateProvince",
+                  "displayName": "都道府県",
                   "scale": {
                     "type": "categorical"
                   }
@@ -527,10 +610,56 @@
             }
           },
           "position": {
-            "x": 2,
-            "y": 1,
-            "width": 6,
-            "height": 6
+            "x": 8,
+            "y": 16,
+            "width": 4,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_state",
+            "queries": [
+              {
+                "name": "dashboards/01f19b81abf716b9bbffcd2010010646/datasets/01f19b88e42216d0ae152aa3b4291f79_stateProvince",
+                "query": {
+                  "datasetName": "geographic_summary",
+                  "fields": [
+                    {
+                      "name": "stateProvince",
+                      "expression": "`stateProvince`"
+                    },
+                    {
+                      "name": "stateProvince_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "title": "都道府県フィルター",
+                "showTitle": true
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "stateProvince",
+                    "queryName": "dashboards/01f19b81abf716b9bbffcd2010010646/datasets/01f19b88e42216d0ae152aa3b4291f79_stateProvince"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 14,
+            "width": 4,
+            "height": 2
           }
         }
       ],
