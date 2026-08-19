@@ -36,6 +36,10 @@
             "expr": "stateProvince"
           },
           {
+            "name": "stateProvinceCode",
+            "expr": "CASE \n  WHEN stateProvince = 'Hokkaido' THEN '01'\n  WHEN stateProvince = 'Aomori' THEN '02'\n  WHEN stateProvince = 'Iwate' THEN '03'\n  WHEN stateProvince = 'Miyagi' THEN '04'\n  WHEN stateProvince = 'Akita' THEN '05'\n  WHEN stateProvince = 'Yamagata' THEN '06'\n  WHEN stateProvince = 'Fukushima' THEN '07'\n  WHEN stateProvince = 'Ibaraki' THEN '08'\n  WHEN stateProvince = 'Tochigi' THEN '09'\n  WHEN stateProvince = 'Gunma' THEN '10'\n  WHEN stateProvince = 'Saitama' THEN '11'\n  WHEN stateProvince = 'Chiba' THEN '12'\n  WHEN stateProvince = 'Tokyo' THEN '13'\n  WHEN stateProvince = 'Kanagawa' THEN '14'\n  WHEN stateProvince = 'Niigata' THEN '15'\n  WHEN stateProvince = 'Toyama' THEN '16'\n  WHEN stateProvince = 'Ishikawa' THEN '17'\n  WHEN stateProvince = 'Fukui' THEN '18'\n  WHEN stateProvince = 'Yamanashi' THEN '19'\n  WHEN stateProvince = 'Nagano' THEN '20'\n  WHEN stateProvince = 'Gifu' THEN '21'\n  WHEN stateProvince = 'Shizuoka' THEN '22'\n  WHEN stateProvince = 'Aichi' THEN '23'\n  WHEN stateProvince = 'Mie' THEN '24'\n  WHEN stateProvince = 'Shiga' THEN '25'\n  WHEN stateProvince = 'Kyoto' THEN '26'\n  WHEN stateProvince = 'Osaka' THEN '27'\n  WHEN stateProvince = 'Hyōgo' OR stateProvince = 'Hyogo' THEN '28'\n  WHEN stateProvince = 'Nara' THEN '29'\n  WHEN stateProvince = 'Wakayama' THEN '30'\n  WHEN stateProvince = 'Tottori' THEN '31'\n  WHEN stateProvince = 'Shimane' THEN '32'\n  WHEN stateProvince = 'Okayama' THEN '33'\n  WHEN stateProvince = 'Hiroshima' THEN '34'\n  WHEN stateProvince = 'Yamaguchi' THEN '35'\n  WHEN stateProvince = 'Tokushima' THEN '36'\n  WHEN stateProvince = 'Kagawa' THEN '37'\n  WHEN stateProvince = 'Ehime' THEN '38'\n  WHEN stateProvince = 'Kochi' THEN '39'\n  WHEN stateProvince = 'Fukuoka' THEN '40'\n  WHEN stateProvince = 'Saga' THEN '41'\n  WHEN stateProvince = 'Nagasaki' THEN '42'\n  WHEN stateProvince = 'Kumamoto' THEN '43'\n  WHEN stateProvince = 'Oita' THEN '44'\n  WHEN stateProvince = 'Miyazaki' THEN '45'\n  WHEN stateProvince = 'Kagoshima' THEN '46'\n  WHEN stateProvince = 'Okinawa' THEN '47'\n  ELSE NULL \nEND\n"
+          },
+          {
             "name": "county",
             "expr": "county"
           },
@@ -209,7 +213,7 @@
           "position": {
             "x": 0,
             "y": 1,
-            "width": 4,
+            "width": 2,
             "height": 2
           }
         },
@@ -250,9 +254,9 @@
             }
           },
           "position": {
-            "x": 4,
-            "y": 1,
-            "width": 4,
+            "x": 0,
+            "y": 3,
+            "width": 2,
             "height": 2
           }
         },
@@ -293,9 +297,9 @@
             }
           },
           "position": {
-            "x": 8,
-            "y": 1,
-            "width": 4,
+            "x": 0,
+            "y": 5,
+            "width": 2,
             "height": 2
           }
         },
@@ -358,9 +362,9 @@
           },
           "position": {
             "x": 0,
-            "y": 3,
+            "y": 7,
             "width": 12,
-            "height": 3
+            "height": 9
           }
         },
         {
@@ -414,67 +418,15 @@
             }
           },
           "position": {
-            "x": 0,
-            "y": 6,
-            "width": 6,
-            "height": 4
+            "x": 8,
+            "y": 1,
+            "width": 4,
+            "height": 6
           }
         },
         {
           "widget": {
-            "name": "country_map",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "country_summary",
-                  "fields": [
-                    {
-                      "name": "measure(total_observations)",
-                      "expression": "MEASURE(`total_observations`)"
-                    },
-                    {
-                      "name": "countryCode",
-                      "expression": "`countryCode`"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 1,
-              "widgetType": "choropleth-map",
-              "encodings": {
-                "extra": [
-                  {
-                    "fieldName": "measure(total_observations)"
-                  }
-                ],
-                "region": {
-                  "regionType": "mapbox-v4-admin",
-                  "admin0": {
-                    "fieldName": "countryCode",
-                    "type": "field",
-                    "geographicRole": "admin0-unit-code"
-                  }
-                }
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 6,
-            "y": 6,
-            "width": 6,
-            "height": 4
-          }
-        },
-        {
-          "widget": {
-            "name": "geographic_summary_table",
+            "name": "1cfff55c",
             "queries": [
               {
                 "name": "main_query",
@@ -482,76 +434,35 @@
                   "datasetName": "geographic_summary",
                   "fields": [
                     {
-                      "name": "japanese_name",
-                      "expression": "`japanese_name`"
-                    },
-                    {
-                      "name": "stateProvince",
-                      "expression": "`stateProvince`"
-                    },
-                    {
-                      "name": "county",
-                      "expression": "`county`"
-                    },
-                    {
-                      "name": "municipality",
-                      "expression": "`municipality`"
-                    },
-                    {
                       "name": "latitude_grid",
                       "expression": "`latitude_grid`"
                     },
                     {
                       "name": "longitude_grid",
                       "expression": "`longitude_grid`"
-                    },
-                    {
-                      "name": "measure(total_observations)",
-                      "expression": "MEASURE(`total_observations`)"
                     }
                   ],
-                  "disaggregated": false
+                  "disaggregated": true
                 }
               }
             ],
             "spec": {
-              "version": 1,
+              "version": 2,
               "frame": {
-                "title": "Observations by Location",
+                "title": "地理的分布",
                 "showTitle": true
               },
-              "widgetType": "table",
+              "widgetType": "symbol-map",
               "encodings": {
-                "columns": [
-                  {
-                    "fieldName": "japanese_name",
-                    "displayName": "Species"
+                "coordinates": {
+                  "coordinateType": "longitude-latitude",
+                  "latitude": {
+                    "fieldName": "latitude_grid"
                   },
-                  {
-                    "fieldName": "stateProvince",
-                    "displayName": "State / Province"
-                  },
-                  {
-                    "fieldName": "county",
-                    "displayName": "County"
-                  },
-                  {
-                    "fieldName": "municipality",
-                    "displayName": "Municipality"
-                  },
-                  {
-                    "fieldName": "latitude_grid",
-                    "displayName": "Latitude"
-                  },
-                  {
-                    "fieldName": "longitude_grid",
-                    "displayName": "Longitude"
-                  },
-                  {
-                    "fieldName": "measure(total_observations)",
-                    "displayName": "Observations"
+                  "longitude": {
+                    "fieldName": "longitude_grid"
                   }
-                ]
+                }
               },
               "data": {
                 "queryName": "main_query"
@@ -560,8 +471,65 @@
           },
           "position": {
             "x": 0,
-            "y": 10,
+            "y": 16,
             "width": 12,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "cb6a0a7c",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "species_summary",
+                  "fields": [
+                    {
+                      "name": "measure(total_observations)",
+                      "expression": "MEASURE(`total_observations`)"
+                    },
+                    {
+                      "name": "japanese_name",
+                      "expression": "`japanese_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "title": "日本名別データ割合",
+                "showTitle": true
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "measure(total_observations)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "観測数"
+                },
+                "color": {
+                  "fieldName": "japanese_name",
+                  "displayName": "日本名",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 1,
+            "width": 6,
             "height": 6
           }
         }
