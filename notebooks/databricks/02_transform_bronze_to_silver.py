@@ -3,7 +3,9 @@
 # [tool.databricks.environment]
 # environment_version = "5"
 # ///
+
 from pyspark.sql import functions as F
+
 
 # COMMAND ----------
 
@@ -15,8 +17,8 @@ def add_event_date_parts(df):
             F.regexp_extract(
                 F.col("eventDate"),
                 r"^(\d{4})",
-                1
-            ).cast("int")
+                1,
+            ).cast("int"),
         )
         .withColumn(
             "event_month",
@@ -25,9 +27,9 @@ def add_event_date_parts(df):
                 F.regexp_extract(
                     F.col("eventDate"),
                     r"^\d{4}-(\d{2})",
-                    1
-                ).cast("int")
-            )
+                    1,
+                ).cast("int"),
+            ),
         )
         .withColumn(
             "event_day",
@@ -36,59 +38,222 @@ def add_event_date_parts(df):
                 F.regexp_extract(
                     F.col("eventDate"),
                     r"^\d{4}-\d{2}-(\d{2})",
-                    1
-                ).cast("int")
-            )
+                    1,
+                ).cast("int"),
+            ),
         )
     )
 
+
 # COMMAND ----------
 
-bronze_df = spark.read.table("workspace.bronze.gbif_occurrences")
+bronze_df = spark.read.table(
+    "workspace.bronze.gbif_occurrences"
+)
+
 
 # COMMAND ----------
 
 silver_df = bronze_df.select(
-    F.get_json_object("raw_json", "$.gbifID").alias("gbifID"),
-    F.get_json_object("raw_json", "$.scientificName").alias("scientificName"),
-    F.get_json_object("raw_json", "$.species").alias("species"),
-    F.get_json_object("raw_json", "$.kingdom").alias("kingdom"),
-    F.get_json_object("raw_json", "$.phylum").alias("phylum"),
-    F.get_json_object("raw_json", "$.class").alias("class"),
-    F.get_json_object("raw_json", "$.order").alias("order"),
-    F.get_json_object("raw_json", "$.family").alias("family"),
-    F.get_json_object("raw_json", "$.genus").alias("genus"),
-    F.get_json_object("raw_json", "$.country").alias("country"),
-    F.get_json_object("raw_json", "$.countryCode").alias("countryCode"),
-    F.get_json_object("raw_json", "$.decimalLatitude")
-        .cast("double")
-        .alias("decimalLatitude"),
-    F.get_json_object("raw_json", "$.decimalLongitude")
-        .cast("double")
-        .alias("decimalLongitude"),
-    F.get_json_object("raw_json", "$.eventDate").alias("eventDate"),
-    F.get_json_object("raw_json", "$.basisOfRecord").alias("basisOfRecord"),
-    F.get_json_object("raw_json", "$.occurrenceStatus")
-        .alias("occurrenceStatus"),
+    # GBIF identification
+    F.get_json_object(
+        "raw_json",
+        "$.gbifID",
+    ).alias("gbifID"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.scientificName",
+    ).alias("scientificName"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.species",
+    ).alias("species"),
+
+    # Taxonomy
+    F.get_json_object(
+        "raw_json",
+        "$.kingdom",
+    ).alias("kingdom"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.phylum",
+    ).alias("phylum"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.class",
+    ).alias("class"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.order",
+    ).alias("order"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.family",
+    ).alias("family"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.genus",
+    ).alias("genus"),
+
+    # Geographic information
+    F.get_json_object(
+        "raw_json",
+        "$.country",
+    ).alias("country"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.countryCode",
+    ).alias("countryCode"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.stateProvince",
+    ).alias("stateProvince"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.county",
+    ).alias("county"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.municipality",
+    ).alias("municipality"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.locality",
+    ).alias("locality"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.decimalLatitude",
+    )
+    .cast("double")
+    .alias("decimalLatitude"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.decimalLongitude",
+    )
+    .cast("double")
+    .alias("decimalLongitude"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.coordinateUncertaintyInMeters",
+    )
+    .cast("double")
+    .alias("coordinateUncertaintyInMeters"),
+
+    # Observation date
+    F.get_json_object(
+        "raw_json",
+        "$.eventDate",
+    ).alias("eventDate"),
+
+    # Observation metadata
+    F.get_json_object(
+        "raw_json",
+        "$.basisOfRecord",
+    ).alias("basisOfRecord"),
+
+    F.get_json_object(
+        "raw_json",
+        "$.occurrenceStatus",
+    ).alias("occurrenceStatus"),
+
+    # Pipeline metadata
     F.col("query_scientific_name"),
     F.col("ingested_at"),
 )
 
+
+# COMMAND ----------
+
 silver_df = add_event_date_parts(silver_df)
+
 
 # COMMAND ----------
 
 quality_df = silver_df.select(
     F.count("*").alias("total_records"),
+
+    # Identification
     F.sum(
-        F.when(F.col("gbifID").isNull(), 1).otherwise(0)
+        F.when(
+            F.col("gbifID").isNull(),
+            1,
+        ).otherwise(0)
     ).alias("missing_gbifID"),
+
     F.sum(
-        F.when(F.col("scientificName").isNull(), 1).otherwise(0)
+        F.when(
+            F.col("scientificName").isNull(),
+            1,
+        ).otherwise(0)
     ).alias("missing_scientificName"),
+
+    # Geographic completeness
     F.sum(
-        F.when(F.col("countryCode").isNull(), 1).otherwise(0)
+        F.when(
+            F.col("countryCode").isNull(),
+            1,
+        ).otherwise(0)
     ).alias("missing_countryCode"),
+
+    F.sum(
+        F.when(
+            F.col("stateProvince").isNull(),
+            1,
+        ).otherwise(0)
+    ).alias("missing_stateProvince"),
+
+    F.sum(
+        F.when(
+            F.col("county").isNull(),
+            1,
+        ).otherwise(0)
+    ).alias("missing_county"),
+
+    F.sum(
+        F.when(
+            F.col("municipality").isNull(),
+            1,
+        ).otherwise(0)
+    ).alias("missing_municipality"),
+
+    F.sum(
+        F.when(
+            F.col("locality").isNull(),
+            1,
+        ).otherwise(0)
+    ).alias("missing_locality"),
+
+    # Coordinate completeness
+    F.sum(
+        F.when(
+            F.col("decimalLatitude").isNull(),
+            1,
+        ).otherwise(0)
+    ).alias("missing_latitude"),
+
+    F.sum(
+        F.when(
+            F.col("decimalLongitude").isNull(),
+            1,
+        ).otherwise(0)
+    ).alias("missing_longitude"),
+
+    # Coordinate validity
     F.sum(
         F.when(
             (F.col("decimalLatitude") < -90)
@@ -96,6 +261,7 @@ quality_df = silver_df.select(
             1,
         ).otherwise(0)
     ).alias("invalid_latitude"),
+
     F.sum(
         F.when(
             (F.col("decimalLongitude") < -180)
@@ -103,9 +269,21 @@ quality_df = silver_df.select(
             1,
         ).otherwise(0)
     ).alias("invalid_longitude"),
+
+    # Coordinate uncertainty
+    F.sum(
+        F.when(
+            F.col("coordinateUncertaintyInMeters") < 0,
+            1,
+        ).otherwise(0)
+    ).alias("invalid_coordinate_uncertainty"),
 )
 
+
+# COMMAND ----------
+
 display(quality_df)
+
 
 # COMMAND ----------
 
@@ -119,7 +297,12 @@ silver_table = "workspace.silver.gbif_occurrences"
     .saveAsTable(silver_table)
 )
 
+
+# COMMAND ----------
+
+record_count = silver_df.count()
+
 print(
     f"Silver table updated: {silver_table}, "
-    f"records={silver_df.count()}"
+    f"records={record_count}"
 )
