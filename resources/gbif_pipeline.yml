@@ -1,7 +1,7 @@
 resources:
   jobs:
     gbif_pipeline:
-      name: animal-database-gbif-pipeline-${bundle.target}
+      name: gbif-database-gbif-pipeline-${bundle.target}
 
       parameters:
         - name: limit

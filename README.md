@@ -514,8 +514,8 @@ Databricks版とは別に、ローカル環境でもGBIF APIからデータを�
 ### 1. Clone
 
 ```bash
-git clone https://github.com/hk0753854/animal-database.git
-cd animal-database
+git clone https://github.com/hk0753854/gbif-database.git
+cd gbif-database
 ```
 
 ### 2. Create Virtual Environment

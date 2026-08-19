@@ -1,8 +1,12 @@
 bundle:
-  name: animal-database
+  name: gbif-database
 
 include:
   - resources/*.yml
+
+sync:
+  include:
+    - src/input_files/species_master.csv
 
 targets:
   dev:
