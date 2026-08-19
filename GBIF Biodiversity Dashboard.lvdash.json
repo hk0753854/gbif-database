@@ -95,6 +95,27 @@
           }
         ]
       }
+    },
+    {
+      "name": "f319f06c",
+      "displayName": "country_summary",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.gold.country_summary",
+        "dimensions": [
+          {
+            "expr": "source.*"
+          }
+        ],
+        "measures": [
+          {
+            "name": "count",
+            "expr": "COUNT(*)",
+            "comment": "Represents the total number of rows in the dataset. Use this measure to count all",
+            "displayName": "Count"
+          }
+        ]
+      }
     }
   ],
   "pages": [
@@ -320,63 +341,50 @@
           },
           "position": {
             "x": 0,
-            "y": 9,
+            "y": 6,
             "width": 12,
             "height": 3
           }
         },
         {
           "widget": {
-            "name": "locations_table",
+            "name": "52f5a863",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "geographic_summary",
+                  "datasetName": "f319f06c",
                   "fields": [
                     {
-                      "name": "query_scientific_name",
-                      "expression": "`query_scientific_name`"
+                      "name": "sum(observations)",
+                      "expression": "SUM(`observations`)"
                     },
                     {
-                      "name": "japanese_name",
-                      "expression": "`japanese_name`"
-                    },
-                    {
-                      "name": "latitude_grid",
-                      "expression": "`latitude_grid`"
-                    },
-                    {
-                      "name": "longitude_grid",
-                      "expression": "`longitude_grid`"
+                      "name": "countryCode",
+                      "expression": "`countryCode`"
                     }
                   ],
-                  "disaggregated": true
+                  "disaggregated": false
                 }
               }
             ],
             "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Observation Locations",
-                "showTitle": true
-              },
-              "widgetType": "table",
+              "version": 1,
+              "widgetType": "choropleth-map",
               "encodings": {
-                "columns": [
+                "extra": [
                   {
-                    "fieldName": "query_scientific_name"
-                  },
-                  {
-                    "fieldName": "japanese_name"
-                  },
-                  {
-                    "fieldName": "latitude_grid"
-                  },
-                  {
-                    "fieldName": "longitude_grid"
+                    "fieldName": "sum(observations)"
                   }
-                ]
+                ],
+                "region": {
+                  "regionType": "mapbox-v4-admin",
+                  "admin0": {
+                    "fieldName": "countryCode",
+                    "type": "field",
+                    "geographicRole": "admin0-unit-code"
+                  }
+                }
               },
               "data": {
                 "queryName": "main_query"
@@ -385,9 +393,9 @@
           },
           "position": {
             "x": 0,
-            "y": 12,
+            "y": 9,
             "width": 12,
-            "height": 3
+            "height": 10
           }
         }
       ],
