@@ -1,27 +1,11 @@
 # Databricks notebook source
-dbutils.widgets.text(
-    "scientific_name",
-    "Hynobius nebulosus",
-    "Scientific Name",
-)
-
-dbutils.widgets.text(
-    "limit",
-    "10",
-    "Record Limit",
-)
-
-scientific_name = dbutils.widgets.get("scientific_name")
-limit = int(dbutils.widgets.get("limit"))
-
-print(f"Target species: {scientific_name}")
-print(f"Record limit: {limit}")
-
-# COMMAND ----------
-
-# DBTITLE 1,eventDate を解析する関数
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 from pyspark.sql import functions as F
 
+# COMMAND ----------
 
 def add_event_date_parts(df):
     return (
@@ -64,7 +48,6 @@ bronze_df = spark.read.table("workspace.bronze.gbif_occurrences")
 
 # COMMAND ----------
 
-# DBTITLE 1,BronzeのJSONをSilver用に変換する
 silver_df = bronze_df.select(
     F.get_json_object("raw_json", "$.gbifID").alias("gbifID"),
     F.get_json_object("raw_json", "$.scientificName").alias("scientificName"),
@@ -94,9 +77,6 @@ silver_df = bronze_df.select(
 silver_df = add_event_date_parts(silver_df)
 
 # COMMAND ----------
-
-from pyspark.sql import functions as F
-
 
 quality_df = silver_df.select(
     F.count("*").alias("total_records"),
@@ -129,7 +109,6 @@ display(quality_df)
 
 # COMMAND ----------
 
-# DBTITLE 1,Silver Delta Tableへ保存
 silver_table = "workspace.silver.gbif_occurrences"
 
 (

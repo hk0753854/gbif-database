@@ -1,17 +1,36 @@
 # Databricks notebook source
-silver_df = spark.read.table("workspace.silver.gbif_occurrences")
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
+# DBTITLE 1,Spark SQL関数モジュールのインポート
+from pyspark.sql import functions as F
 
 # COMMAND ----------
 
-# DBTITLE 1,species_summary
-from pyspark.sql import functions as F
+# DBTITLE 1,Load Silver and Master Species DataFrames from Tables
+silver_df = spark.read.table("workspace.silver.gbif_occurrences")
+species_master = spark.read.table("workspace.mstr.species_master")
 
+# COMMAND ----------
 
+# DBTITLE 1,species_join_with_master_data
+silver_df_with_species_nm = silver_df.join(
+    species_master,
+    silver_df["query_scientific_name"] == species_master["scientific_name"],
+    "left"
+)
+
+# COMMAND ----------
+
+# DBTITLE 1,species_observations_by_scientific_name_summary
 species_summary_df = (
-    silver_df
+    silver_df_with_species_nm
     .groupBy(
         "scientificName",
         "query_scientific_name",
+        "japanese_name",
+        "taxonomic_group",
     )
     .agg(
         F.count("*").alias("observations")
@@ -25,6 +44,7 @@ display(species_summary_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,Update Gold Table with Species Summary Records
 gold_table = "workspace.gold.species_summary"
 
 (
@@ -41,15 +61,13 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,Country別集計
-from pyspark.sql import functions as F
-
-
+# DBTITLE 1,country_code_observations_summary_by_scientific_name
 country_summary_df = (
-    silver_df
+    silver_df_with_species_nm
     .groupBy(
         "countryCode",
         "query_scientific_name",
+        "japanese_name",
     )
     .agg(
         F.count("*").alias("observations")
@@ -63,6 +81,7 @@ display(country_summary_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,Update Gold Table with Country Summary Records
 gold_table = "workspace.gold.country_summary"
 
 (
@@ -79,15 +98,16 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,Year別集計
+# DBTITLE 1,yearly_observations_summary_by_species_scientific_name
 year_summary_df = (
-    silver_df
+    silver_df_with_species_nm
     .filter(
         F.col("event_year").isNotNull()
     )
     .groupBy(
         "event_year",
         "query_scientific_name",
+        "japanese_name",
     )
     .agg(
         F.count("*").alias("observations")
@@ -102,6 +122,7 @@ display(year_summary_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,Update Gold Table with Yearly Summary Records
 gold_table = "workspace.gold.year_summary"
 
 (
@@ -118,12 +139,13 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,観察タイプ別分析
+# DBTITLE 1,basis_of_record_observations_by_species_summary
 basis_summary_df = (
-    silver_df
+    silver_df_with_species_nm
     .groupBy(
         "basisOfRecord",
         "query_scientific_name",
+        "japanese_name",
     )
     .agg(
         F.count("*").alias("observations")
@@ -138,6 +160,7 @@ display(basis_summary_df)
 
 # COMMAND ----------
 
+# DBTITLE 1,Overwrite Gold Table with Updated Observation Type Data
 gold_table = "workspace.gold.observation_type_summary"
 
 (
@@ -154,12 +177,12 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,地理情報のGold Table
+# DBTITLE 1,Filter and Select Valid Geographic Species Observations
 from pyspark.sql import functions as F
 
 
 geographic_observations_df = (
-    silver_df
+    silver_df_with_species_nm
     .filter(
         F.col("decimalLatitude").isNotNull()
     )
@@ -169,6 +192,7 @@ geographic_observations_df = (
     .select(
         "gbifID",
         "scientificName",
+        "japanese_name",
         "query_scientific_name",
         "countryCode",
         "decimalLatitude",
@@ -199,6 +223,7 @@ geographic_summary_df = (
         "latitude_grid",
         "longitude_grid",
         "query_scientific_name",
+        "japanese_name",
     )
     .agg(
         F.count("*").alias("observations")

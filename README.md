@@ -4,9 +4,9 @@ GBIF（Global Biodiversity Information Facility）の生物多様性データを
 
 GBIF Occurrence APIから観察データを取得し、Databricks上で **Bronze / Silver / Gold Architecture** に基づいてデータを処理・分析します。
 
-ローカル開発環境では **Python / Pandas / Parquet / DuckDB** を利用し、Databricks環境では **PySpark / Delta Lake / Databricks Jobs** を利用します。
+また、ローカル開発環境では **Python / Pandas / Parquet / DuckDB** を利用し、Databricks環境では **PySpark / Delta Lake / Databricks Jobs** を利用する構成としています。
 
-また、Databricks Jobは **Databricks Asset BundlesによるJob as Code** としてGit管理し、**GitHub ActionsによるCI/CD**まで実装しています。
+Databricks Jobは **Databricks Asset BundlesによるJob as Code** としてGit管理し、**GitHub ActionsによるCI/CD** まで実装しています。
 
 ---
 
@@ -18,7 +18,7 @@ GBIF Occurrence APIから観察データを取得し、Databricks上で **Bronze
 GBIF Occurrence API
         │
         ▼
-   Data Ingestion
+    Data Ingestion
         │
         ▼
       Bronze
@@ -35,35 +35,33 @@ GBIF Occurrence API
 
 主な実装内容：
 
-* GBIF Occurrence APIから観察データを取得
-* APIエラーに対するRetry処理
-* Raw JSONをBronze Delta Tableへ保存
-* PySparkによるデータ変換
-* データ品質チェック
-* Silver Delta Tableへの構造化データ保存
-* Gold Layerで分析用テーブルを作成
-* Databricks Jobによるパイプラインのオーケストレーション
-* Databricks Asset BundlesによるJob as Code
-* Job Parametersによる取得対象・取得件数の制御
-* GitHub ActionsによるCI/CD
-* pytestによるユニットテスト
-* Ruffによるコード品質チェック
-* ローカル環境でのParquet / DuckDBによるデータ処理
+1. GBIF Occurrence APIから観察データを取得
+2. Raw JSONをBronze Delta Tableへ保存
+3. PySparkによるデータ変換
+4. データ品質チェック
+5. Silver Delta Tableへ構造化データを保存
+6. Gold Layerで分析用テーブルを作成
+7. Databricks Jobによる処理のオーケストレーション
+8. Databricks Asset BundlesによるJob定義・デプロイ
+9. GitHub ActionsによるCI/CD
+10. Job Parametersによる取得対象・取得件数の制御
+11. pytestによるユニットテスト
+12. Ruffによるコード品質チェック
 
 ---
 
-# Architecture
+# Key Features
 
-## Lakehouse Architecture
+## Databricks Lakehouse Architecture
 
-Databricks上では、Bronze / Silver / Goldの3層構成を採用しています。
+Databricks上でBronze / Silver / Goldの3層構成を実装しています。
 
 ```text
-                     GBIF Occurrence API
-                              │
-                              ▼
+                    GBIF Occurrence API
+                             │
+                             ▼
                   ┌────────────────────┐
-                  │ Data Ingestion     │
+                  │ 01 Ingest          │
                   │ Python / Requests  │
                   └─────────┬──────────┘
                             │
@@ -71,22 +69,110 @@ Databricks上では、Bronze / Silver / Goldの3層構成を採用していま�
                   ┌────────────────────┐
                   │ Bronze             │
                   │ Raw JSON           │
-                  │ Delta Lake         │
+                  │ Delta Table        │
                   └─────────┬──────────┘
                             │
                             ▼
                   ┌────────────────────┐
-                  │ Silver             │
+                  │ 02 Transform       │
                   │ PySpark            │
-                  │ Structured Data    │
                   │ Data Quality       │
                   └─────────┬──────────┘
                             │
                             ▼
                   ┌────────────────────┐
-                  │ Gold               │
+                  │ Silver             │
+                  │ Structured Data    │
+                  │ Delta Table        │
+                  └─────────┬──────────┘
+                            │
+                            ▼
+                  ┌────────────────────┐
+                  │ 03 Gold            │
                   │ Analytical Tables  │
                   └────────────────────┘
+```
+
+## Job as Code
+
+Databricks JobをGUIだけで構築するのではなく、Databricks Asset Bundlesを利用してGit管理しています。
+
+```text
+GitHub
+  │
+  ▼
+databricks.yml
+  │
+  ▼
+resources/gbif_pipeline.yml
+  │
+  ▼
+Databricks Job
+```
+
+これにより、Jobの構成・Notebook・依存関係・パラメータをコードとして再現可能にしています。
+
+## CI/CD
+
+GitHub Actionsを利用して、Pull Request時の検証と`main`ブランチへのPush時のDatabricksデプロイを自動化しています。
+
+```text
+Pull Request
+     │
+     ├── Ruff
+     ├── pytest
+     └── Bundle Validate
+     
+main Push
+     │
+     ├── Ruff
+     ├── pytest
+     ├── Bundle Validate
+     │
+     └── Bundle Deploy
+              │
+              ▼
+         Databricks
+```
+
+---
+
+# Architecture
+
+## Data Pipeline
+
+GBIF Occurrence APIから取得したデータをDatabricks上で段階的に処理します。
+
+```text
+                         GBIF
+                   Occurrence API
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Ingestion            │
+              │ Python / Requests    │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Bronze              │
+              │ Raw JSON            │
+              │ Delta Lake          │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Silver              │
+              │ PySpark             │
+              │ Structured Data     │
+              │ Data Quality        │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Gold                │
+              │ Analytical Tables   │
+              └─────────────────────┘
 ```
 
 ---
@@ -109,7 +195,7 @@ Databricks上では、3つのNotebookを依存関係付きのJobとして実行�
 
 GBIF Occurrence APIから観察データを取得します。
 
-Job Parametersとして以下を指定できます。
+Notebookでは以下のJob Parametersを指定できます。
 
 ```text
 scientific_name
@@ -136,27 +222,13 @@ Job Parameters
 01_ingest_gbif_to_bronze
 ```
 
-### API Retry
-
-GBIF APIへのアクセスでは、一時的なサーバーエラーを考慮したRetry処理を実装しています。
-
-Retry対象として以下のHTTPステータスコードを扱います。
-
-```text
-502 Bad Gateway
-503 Service Unavailable
-504 Gateway Timeout
-```
-
-Retry時にはExponential Backoffを利用し、一時的なAPI障害によるパイプライン失敗を抑制しています。
-
 取得したAPIレスポンスはRaw JSONとしてBronze Delta Tableへ保存します。
 
 ```text
 workspace.bronze.gbif_occurrences
 ```
 
-Bronze LayerではRawデータを可能な限り保持し、後続処理で必要な項目を追加・再処理できる構成としています。
+Bronze Layerでは可能な限りRawデータを保持することで、後続処理で必要な項目を追加できる構成としています。
 
 ---
 
@@ -224,7 +296,7 @@ PySpark Transformation
    ▼
 Data Quality Checks
    │
-   ├── Required Fields
+   ├── Required Columns
    ├── Latitude Range
    └── Longitude Range
    │
@@ -259,7 +331,7 @@ decimalLatitude
 decimalLongitude
         │
         ▼
- Grid Transformation
+  Grid Transformation
         │
         ▼
 geographic_summary
@@ -271,20 +343,7 @@ geographic_summary
 
 # Databricks Job as Code
 
-Databricks JobはGUIだけで構築するのではなく、**Databricks Asset Bundles**を利用してコードとして定義しています。
-
-```text
-GitHub
-   │
-   ▼
-databricks.yml
-   │
-   ▼
-resources/gbif_pipeline.yml
-   │
-   ▼
-Databricks Job
-```
+Databricks JobはGUIだけで構築するのではなく、Databricks Asset Bundlesを利用してコードとして定義しています。
 
 Job定義：
 
@@ -321,7 +380,7 @@ scientific_name
 limit
 ```
 
-これらのパラメータをNotebook Taskへ渡すことで、GBIF APIから取得する対象種と取得件数を制御しています。
+これらのパラメータはNotebook Taskへ渡され、GBIF APIから取得する対象種・取得件数を制御します。
 
 ---
 
@@ -335,7 +394,7 @@ databricks bundle deploy -t dev
 databricks bundle run gbif_pipeline -t dev
 ```
 
-これにより、Databricks Jobの構成をコードとして管理・再現できます。
+これにより、Databricks Jobの構成をコードとして再現可能にしています。
 
 ---
 
@@ -345,7 +404,7 @@ GitHub Actionsを利用して、PythonコードとDatabricks Bundleの自動検�
 
 ## Pull Request
 
-Pull Requestでは以下の検証を実行します。
+Pull Requestでは以下を実行します。
 
 ```text
 Pull Request
@@ -355,26 +414,26 @@ Pull Request
      └── databricks bundle validate
 ```
 
-コード品質、ユニットテスト、Databricks Job定義を検証し、問題がある場合はデプロイを行いません。
+コード品質・ユニットテスト・Databricks Job定義を検証し、問題がある場合はデプロイを行いません。
 
 ## mainへのPush
 
-`main`ブランチへのPushでは、検証に加えてDatabricksへのBundleデプロイを実行します。
+`main`ブランチへのPushでは、上記の検証に加えてDatabricksへのBundleデプロイを実行します。
 
 ```text
-main Push
-    │
-    ├── Ruff
-    ├── pytest
-    ├── Bundle Validate
-    │
-    └── Bundle Deploy
-             │
-             ▼
-        Databricks
+main push
+   │
+   ├── Ruff
+   ├── pytest
+   ├── bundle validate
+   │
+   └── bundle deploy -t dev
+              │
+              ▼
+         Databricks
 ```
 
-これにより、GitHubをソースコードのSingle Source of Truthとして、Databricks Jobの構成を自動的に反映できる構成としています。
+これにより、GitHubをソースコードのSingle Source of Truthとして、Databricks Jobの構成を自動的に反映できるようにしています。
 
 ---
 
@@ -399,116 +458,10 @@ main Push
 
 ---
 
-# Local Development
-
-Databricks版とは別に、ローカル環境でもGBIF APIからデータを取得し、Parquet・DuckDBによるデータ処理・分析を実行できます。
-
-ローカル環境では開発・テストを行い、Databricks環境ではPySparkとDelta Lakeを利用して実行する構成としています。
-
-## Local Architecture
-
-```text
-GBIF API
-   │
-   ▼
-gbif_client.py
-   │
-   ▼
-transform.py
-   │
-   ▼
-validate.py
-   │
-   ▼
-Parquet
-   │
-   ▼
-DuckDB
-   │
-   ├── Species別集計
-   ├── Country別集計
-   └── Year別集計
-```
-
-## Setup
-
-### 1. Clone
-
-```bash
-git clone https://github.com/hk0753854/gbif-database.git
-cd gbif-database
-```
-
-### 2. Create Virtual Environment
-
-Windows:
-
-```bash
-python -m venv .venv
-```
-
-### 3. Activate
-
-PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-### 4. Install Dependencies
-
-```bash
-pip install -e ".[dev]"
-```
-
-### 5. Run
-
-```bash
-python -m gbif_data_pipeline.cli "Hynobius nebulosus" --limit 10
-```
-
-ローカル実行では取得したデータをParquetとして保存し、DuckDBからSQLによる集計を行います。
-
----
-
-# Testing & Code Quality
-
-pytestによるユニットテストを実装しています。
-
-現在の主なテスト対象：
-
-```text
-GBIF API Client
-API Pagination
-DataFrame Transformation
-Data Validation
-Pipeline
-DuckDB Query
-CLI
-```
-
-APIアクセス部分ではpytestの`monkeypatch`を使用し、実際のGBIF APIへアクセスせずにテストできる構成としています。
-
-### Run Tests
-
-```bash
-pytest
-```
-
-### Run Ruff
-
-```bash
-ruff check src tests
-```
-
-これらのチェックはGitHub Actionsでも自動実行されます。
-
----
-
 # Project Structure
 
 ```text
-gbif-database/
+gbif-data-pipeline/
 │
 ├── .github/
 │   └── workflows/
@@ -516,9 +469,9 @@ gbif-database/
 │
 ├── notebooks/
 │   └── databricks/
-│       ├── 01_ingest_gbif_to_bronze.py
-│       ├── 02_transform_bronze_to_silver.py
-│       └── 03_create_gold_tables.py
+│       ├── 01_ingest_gbif_to_bronze
+│       ├── 02_transform_bronze_to_silver
+│       └── 03_create_gold_tables
 │
 ├── resources/
 │   └── gbif_pipeline.yml
@@ -550,7 +503,157 @@ gbif-database/
 
 ---
 
-# Design Principles
+# Local Development
+
+Databricks版とは別に、ローカル環境でもGBIF APIからデータを取得し、Parquet・DuckDBによるデータ処理・分析を実行できます。
+
+ローカル開発環境とDatabricks実行環境を分離することで、開発・テストをローカルで行いながら、実行環境ではDatabricksの分散処理基盤を利用する構成としています。
+
+## Setup
+
+### 1. Clone
+
+```bash
+git clone https://github.com/hk0753854/animal-database.git
+cd animal-database
+```
+
+### 2. Create Virtual Environment
+
+Windows：
+
+```bash
+python -m venv .venv
+```
+
+### 3. Activate
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### 4. Install Dependencies
+
+```bash
+pip install -e ".[dev]"
+```
+
+### 5. Run
+
+```bash
+python -m gbif_data_pipeline.cli "Hynobius nebulosus" --limit 10
+```
+
+ローカル実行では取得したデータをParquetとして保存し、DuckDBからSQLによる集計を行います。
+
+---
+
+# Local Data Processing
+
+ローカル版では以下の処理を実装しています。
+
+```text
+GBIF API
+   │
+   ▼
+gbif_client.py
+   │
+   ▼
+transform.py
+   │
+   ▼
+validate.py
+   │
+   ▼
+Parquet
+   │
+   ▼
+DuckDB
+   │
+   ├── Species別集計
+   ├── Country別集計
+   └── Year別集計
+```
+
+これにより、Databricksを利用しない環境でも基本的なデータ取得・変換・品質チェック・分析処理を確認できます。
+
+---
+
+# Testing
+
+pytestによるユニットテストを実装しています。
+
+現在のテスト対象：
+
+```text
+GBIF API Client
+API Pagination
+DataFrame Transformation
+Data Validation
+Pipeline
+DuckDB Query
+CLI
+```
+
+APIアクセス部分ではpytestの`monkeypatch`を使用し、実際のGBIF APIへアクセスせずにテストできる構成にしています。
+
+```bash
+pytest
+```
+
+RuffによるLintも実行しています。
+
+```bash
+ruff check src tests
+```
+
+これらのチェックはGitHub Actionsでも自動実行されます。
+
+---
+
+# Design
+
+このプロジェクトでは、データ取得・変換・品質チェック・分析処理の責務を分離しています。
+
+## Local Architecture
+
+ローカル版では以下の構成としています。
+
+```text
+gbif_client.py
+      │
+      ▼
+transform.py
+      │
+      ▼
+validate.py
+      │
+      ▼
+pipeline.py
+      │
+      ▼
+duckdb_client.py
+```
+
+## Databricks Architecture
+
+Databricks版では、ローカルで実装したデータ処理の考え方をLakehouse Architectureへ発展させています。
+
+```text
+Bronze
+   │
+   ▼
+Silver
+   │
+   ▼
+Gold
+```
+
+さらにDatabricks JobをAsset Bundlesとしてコード管理することで、Notebook・Job・依存関係・パラメータをGitで管理できる構成としています。
+
+---
+
+# Development Philosophy
 
 このプロジェクトでは、単にDatabricks上でNotebookを実行するだけではなく、実際のデータエンジニアリング開発を想定して以下を意識しています。
 
@@ -560,7 +663,7 @@ Pythonによるデータ処理をローカル環境で開発・テストしま�
 
 ### 2. Automated Testing
 
-pytestによるユニットテストを実装し、APIクライアントやデータ処理ロジックを自動検証します。
+pytestによるユニットテストを実装し、APIやデータ処理ロジックを自動検証します。
 
 ### 3. Code Quality
 
@@ -576,7 +679,7 @@ Databricks JobをAsset Bundlesで定義し、Gitによるバージョン管理�
 
 ### 6. CI/CD
 
-GitHub ActionsからRuff、pytest、Bundle Validation、Bundle Deploymentを自動実行します。
+GitHub ActionsからBundleのValidation・Deploymentを自動実行します。
 
 ```text
 Local Development
@@ -585,23 +688,21 @@ Local Development
       Git
        │
        ▼
-    GitHub
-       │
-       ▼
 GitHub Actions
        │
        ├── Ruff
        ├── pytest
-       ├── Bundle Validate
-       │
-       ▼
- Bundle Deploy
-       │
-       ▼
- Databricks
-       │
-       ▼
-Data Pipeline
+       └── Bundle Validate
+              │
+              ▼
+       Bundle Deploy
+              │
+              ▼
+         Databricks
+              │
+              ▼
+       Production-like
+        Data Pipeline
 ```
 
 ---
@@ -610,17 +711,46 @@ Data Pipeline
 
 今後は以下の機能追加を予定しています。
 
-* 大規模データ取得に対応したPaginationの強化
-* 増分取得
-* 重複データの検出・Deduplication
-* データ品質チェックの強化
-* Databricks SQL Dashboard
-* パイプライン実行結果の監視・ログ管理
-* より高度な地理空間分析
-* dev / prod環境の運用分離
-* データパイプラインの実行履歴・メタデータ管理
+```text
+GBIF APIの大規模Pagination対応
+増分取得
+APIリトライ処理
+重複データの検出
+データ品質チェックの強化
+Databricks SQL Dashboard
+Azure DevOps Pipelineとの連携
+パイプライン実行結果の監視・ログ管理
+より高度な地理空間分析
+dev / prod環境の分離
+```
 
-API Retry、ユニットテスト、Ruff、Databricks Asset Bundles、GitHub ActionsによるCI/CDについては実装済みです。
+CI/CDによる自動テスト・Bundle Validation・Databricksへの自動デプロイについては実装済みです。
+
+---
+
+# Learning Objectives
+
+このプロジェクトを通して、以下のデータエンジニアリング技術を実践しています。
+
+```text
+REST APIからのデータ取得
+ETL / ELTパイプライン構築
+Pythonによるデータ処理
+PySparkによるデータ処理
+Bronze / Silver / Gold Architecture
+Delta Lake
+Databricks Jobs
+Databricks Asset Bundles
+Job as Code
+Job Parameters
+データ品質チェック
+Parquetによるデータ保存
+DuckDBによるSQL分析
+pytestによるテスト
+RuffによるLint
+Git / GitHubによるソースコード管理
+GitHub ActionsによるCI/CD
+```
 
 ---
 
@@ -632,7 +762,6 @@ API Retry、ユニットテスト、Ruff、Databricks Asset Bundles、GitHub Act
 | ---------------------- | ---------------------------------- |
 | Data Source            | GBIF Occurrence API                |
 | Ingestion              | Python / Requests                  |
-| API Reliability        | Retry / Exponential Backoff        |
 | Local Processing       | Pandas                             |
 | Distributed Processing | PySpark                            |
 | Data Lakehouse         | Databricks / Delta Lake            |
@@ -647,42 +776,6 @@ API Retry、ユニットテスト、Ruff、Databricks Asset Bundles、GitHub Act
 | CI/CD                  | GitHub Actions                     |
 | Version Control        | Git / GitHub                       |
 | Local Analytics        | DuckDB                             |
-| Local Storage          | Parquet                            |
-
----
-
-# Learning Objectives
-
-このプロジェクトを通して、以下のデータエンジニアリング技術を実践しています。
-
-```text
-REST APIからのデータ取得
-        │
-        ▼
-ETL / ELT Pipeline
-        │
-        ├── Python
-        ├── Pandas
-        └── PySpark
-        │
-        ▼
-Bronze / Silver / Gold Architecture
-        │
-        ▼
-Delta Lake
-        │
-        ▼
-Databricks Jobs
-        │
-        ▼
-Databricks Asset Bundles
-        │
-        ▼
-Git / GitHub
-        │
-        ▼
-GitHub Actions CI/CD
-```
 
 ---
 

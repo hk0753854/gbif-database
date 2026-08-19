@@ -1,53 +1,97 @@
 {
   "datasets": [
     {
-      "name": "gbif_data",
-      "displayName": "GBIF Occurrences",
+      "name": "geographic_summary",
+      "displayName": "Geographic Summary",
       "config": {
         "version": "1.1",
-        "source": "workspace.silver.gbif_occurrences",
+        "source": "workspace.gold.geographic_summary",
         "dimensions": [
           {
-            "name": "species",
-            "expr": "species"
+            "name": "latitude_grid",
+            "expr": "latitude_grid"
           },
           {
-            "name": "scientific_name",
-            "expr": "scientificName"
+            "name": "longitude_grid",
+            "expr": "longitude_grid"
           },
           {
-            "name": "country",
-            "expr": "country"
+            "name": "query_scientific_name",
+            "expr": "query_scientific_name"
           },
           {
-            "name": "event_year",
-            "expr": "event_year"
-          },
-          {
-            "name": "basis_of_record",
-            "expr": "basisOfRecord"
-          },
-          {
-            "name": "latitude",
-            "expr": "decimalLatitude"
-          },
-          {
-            "name": "longitude",
-            "expr": "decimalLongitude"
+            "name": "japanese_name",
+            "expr": "japanese_name"
           }
         ],
         "measures": [
           {
             "name": "total_observations",
-            "expr": "COUNT(*)"
+            "expr": "SUM(observations)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "observation_type_summary",
+      "displayName": "Observation Type Summary",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.gold.observation_type_summary",
+        "dimensions": [
+          {
+            "name": "basis_of_record",
+            "expr": "basisOfRecord"
+          },
+          {
+            "name": "query_scientific_name",
+            "expr": "query_scientific_name"
+          },
+          {
+            "name": "japanese_name",
+            "expr": "japanese_name"
+          }
+        ],
+        "measures": [
+          {
+            "name": "total_observations",
+            "expr": "SUM(observations)"
+          }
+        ]
+      }
+    },
+    {
+      "name": "species_summary",
+      "displayName": "Species Summary",
+      "config": {
+        "version": "1.1",
+        "source": "workspace.gold.species_summary",
+        "dimensions": [
+          {
+            "name": "scientific_name",
+            "expr": "scientificName"
+          },
+          {
+            "name": "query_scientific_name",
+            "expr": "query_scientific_name"
+          },
+          {
+            "name": "japanese_name",
+            "expr": "japanese_name"
+          },
+          {
+            "name": "taxonomic_group",
+            "expr": "taxonomic_group"
+          }
+        ],
+        "measures": [
+          {
+            "name": "total_observations",
+            "expr": "SUM(observations)"
           },
           {
             "name": "unique_species",
-            "expr": "COUNT(DISTINCT species)"
-          },
-          {
-            "name": "unique_countries",
-            "expr": "COUNT(DISTINCT country)"
+            "expr": "COUNT(DISTINCT scientificName)"
           }
         ]
       }
@@ -81,7 +125,7 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "gbif_data",
+                  "datasetName": "species_summary",
                   "fields": [
                     {
                       "name": "measure(total_observations)",
@@ -124,7 +168,7 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "gbif_data",
+                  "datasetName": "species_summary",
                   "fields": [
                     {
                       "name": "measure(unique_species)",
@@ -162,59 +206,16 @@
         },
         {
           "widget": {
-            "name": "counter_countries",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "gbif_data",
-                  "fields": [
-                    {
-                      "name": "measure(unique_countries)",
-                      "expression": "MEASURE(`unique_countries`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 2,
-              "frame": {
-                "title": "Countries",
-                "showTitle": true
-              },
-              "widgetType": "counter",
-              "encodings": {
-                "value": {
-                  "fieldName": "measure(unique_countries)",
-                  "rowNumber": 0
-                }
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 8,
-            "y": 1,
-            "width": 4,
-            "height": 2
-          }
-        },
-        {
-          "widget": {
             "name": "species_chart",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "gbif_data",
+                  "datasetName": "species_summary",
                   "fields": [
                     {
-                      "name": "species",
-                      "expression": "`species`"
+                      "name": "scientific_name",
+                      "expression": "`scientific_name`"
                     },
                     {
                       "name": "measure(total_observations)",
@@ -234,22 +235,22 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "species",
-                  "displayName": "species",
+                  "fieldName": "scientific_name",
+                  "displayName": "Scientific Name",
                   "scale": {
                     "type": "categorical"
                   }
                 },
                 "y": {
                   "fieldName": "measure(total_observations)",
-                  "displayName": "total_observations",
+                  "displayName": "Total Observations",
                   "scale": {
                     "type": "quantitative"
                   }
                 },
                 "color": {
-                  "fieldName": "species",
-                  "displayName": "species",
+                  "fieldName": "scientific_name",
+                  "displayName": "Scientific Name",
                   "scale": {
                     "type": "categorical"
                   }
@@ -269,140 +270,12 @@
         },
         {
           "widget": {
-            "name": "year_chart",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "gbif_data",
-                  "fields": [
-                    {
-                      "name": "event_year",
-                      "expression": "`event_year`"
-                    },
-                    {
-                      "name": "measure(total_observations)",
-                      "expression": "MEASURE(`total_observations`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "frame": {
-                "title": "Observations by Year",
-                "showTitle": true
-              },
-              "widgetType": "line",
-              "encodings": {
-                "x": {
-                  "fieldName": "event_year",
-                  "displayName": "event_year",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                },
-                "y": {
-                  "fieldName": "measure(total_observations)",
-                  "displayName": "total_observations",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
-                "color": {
-                  "fieldName": "event_year",
-                  "displayName": "event_year",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                }
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 6,
-            "width": 12,
-            "height": 3
-          }
-        },
-        {
-          "widget": {
-            "name": "country_chart",
-            "queries": [
-              {
-                "name": "main_query",
-                "query": {
-                  "datasetName": "gbif_data",
-                  "fields": [
-                    {
-                      "name": "country",
-                      "expression": "`country`"
-                    },
-                    {
-                      "name": "measure(total_observations)",
-                      "expression": "MEASURE(`total_observations`)"
-                    }
-                  ],
-                  "disaggregated": false
-                }
-              }
-            ],
-            "spec": {
-              "version": 3,
-              "frame": {
-                "title": "Observations by Country",
-                "showTitle": true
-              },
-              "widgetType": "bar",
-              "encodings": {
-                "x": {
-                  "fieldName": "country",
-                  "displayName": "country",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                },
-                "y": {
-                  "fieldName": "measure(total_observations)",
-                  "displayName": "total_observations",
-                  "scale": {
-                    "type": "quantitative"
-                  }
-                },
-                "color": {
-                  "fieldName": "country",
-                  "displayName": "country",
-                  "scale": {
-                    "type": "categorical"
-                  }
-                }
-              },
-              "data": {
-                "queryName": "main_query"
-              }
-            }
-          },
-          "position": {
-            "x": 0,
-            "y": 15,
-            "width": 12,
-            "height": 5
-          }
-        },
-        {
-          "widget": {
             "name": "type_chart",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "gbif_data",
+                  "datasetName": "observation_type_summary",
                   "fields": [
                     {
                       "name": "measure(total_observations)",
@@ -459,23 +332,23 @@
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "gbif_data",
+                  "datasetName": "geographic_summary",
                   "fields": [
                     {
-                      "name": "species",
-                      "expression": "`species`"
+                      "name": "query_scientific_name",
+                      "expression": "`query_scientific_name`"
                     },
                     {
-                      "name": "country",
-                      "expression": "`country`"
+                      "name": "japanese_name",
+                      "expression": "`japanese_name`"
                     },
                     {
-                      "name": "latitude",
-                      "expression": "`latitude`"
+                      "name": "latitude_grid",
+                      "expression": "`latitude_grid`"
                     },
                     {
-                      "name": "longitude",
-                      "expression": "`longitude`"
+                      "name": "longitude_grid",
+                      "expression": "`longitude_grid`"
                     }
                   ],
                   "disaggregated": true
@@ -492,16 +365,16 @@
               "encodings": {
                 "columns": [
                   {
-                    "fieldName": "species"
+                    "fieldName": "query_scientific_name"
                   },
                   {
-                    "fieldName": "country"
+                    "fieldName": "japanese_name"
                   },
                   {
-                    "fieldName": "latitude"
+                    "fieldName": "latitude_grid"
                   },
                   {
-                    "fieldName": "longitude"
+                    "fieldName": "longitude_grid"
                   }
                 ]
               },

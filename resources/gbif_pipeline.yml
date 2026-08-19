@@ -4,19 +4,19 @@ resources:
       name: animal-database-gbif-pipeline-${bundle.target}
 
       parameters:
-        - name: scientific_name
-          default: Hynobius nebulosus
-
         - name: limit
           default: "10"
 
       tasks:
+        - task_key: read_species_master
+          notebook_task:
+            notebook_path: ../notebooks/databricks/04_read_species_master.py
+
         - task_key: ingest_gbif_to_bronze
+          depends_on:
+            - task_key: read_species_master
           notebook_task:
             notebook_path: ../notebooks/databricks/01_ingest_gbif_to_bronze.py
-            base_parameters:
-              scientific_name: "{{job.parameters.scientific_name}}"
-              limit: "{{job.parameters.limit}}"
 
         - task_key: transform_bronze_to_silver
           depends_on:
