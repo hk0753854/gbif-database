@@ -140,6 +140,10 @@
           {
             "name": "total_observations",
             "expr": "SUM(observations)"
+          },
+          {
+            "name": "unique_countries",
+            "expr": "COUNT(DISTINCT countryCode)"
           }
         ]
       }
@@ -262,11 +266,11 @@
                   "datasetName": "country_summary",
                   "fields": [
                     {
-                      "name": "countryCode",
-                      "expression": "`countryCode`"
+                      "name": "measure(unique_countries)",
+                      "expression": "MEASURE(`unique_countries`)"
                     }
                   ],
-                  "disaggregated": true
+                  "disaggregated": false
                 }
               }
             ],
@@ -279,7 +283,7 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "countryCode",
+                  "fieldName": "measure(unique_countries)",
                   "rowNumber": 0
                 }
               },
