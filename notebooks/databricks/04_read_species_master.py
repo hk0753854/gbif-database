@@ -1,10 +1,18 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
+username = (
+    dbutils.notebook.entry_point
+    .getDbutils()
+    .notebook()
+    .getContext()
+    .userName()
+    .get()
+)
 
-from pathlib import Path
-
-# Bundle files are synchronized to the workspace.
-# Resolve the CSV relative to the current notebook environment.
-species_master_file = Path.cwd() / "src" / "input_files" / "species_master.csv"
+species_master_file = f"/Workspace/Users/{username}/gbif-database/src/input_files/species_master.csv"
 
 # COMMAND ----------
 
